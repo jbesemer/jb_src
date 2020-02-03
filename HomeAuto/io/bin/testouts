@@ -1,0 +1,247 @@
+#!/usr/bin/python2.1
+
+########################################
+# testing outputs
+#
+#	inputs pins A0 and A1 are used to switch outputs
+#
+#		A0 => enable pin before TestOutput
+#		A1 => enable pin after TestOutput
+#		A0&A1 => toggle output on or off
+#
+
+from __future__ import nested_scopes
+
+import time
+
+import ioclient
+import soundclient
+from PinsEnglish import PhoneticPin as pp
+from PinsEnglish import PhoneticBank as pb
+
+BankCount = {
+	'H': 16,
+	'I': 16,
+	'J': 16,
+	'K': 6,
+	'L': 8,
+	'M': 8,
+	}
+
+ValueWord = {
+	'0':	" off ",
+	0:	" off ",
+	'1':	" on ",
+	1:	" on ",
+	}
+
+ENABLE_12VDC = "K0"
+ENABLE_FAN = "K1"
+INPUT_PINS = "A0 A1"
+
+NOP_FLAG = 0
+TRACE_FLAG = 0
+
+class ExerciseOutputs:
+	
+	def __init__( self, banks, pin = None ):
+		if pin:
+			self.pin = pin
+		else:
+			self.pin = banks[ 0 ] + '0'
+		self.onoff = 0
+		self.state = [ 0, 0, 0 ]
+		self.ss = soundclient.SoundServerImmed()
+		self.io = ioclient.IoClient( "ExerciseOutputs" )
+		self.banks = banks
+	
+	def start( self, pin = None ):
+		self.genPrevNext()
+
+		self.ss.open()
+		self.io.open()
+
+		if pin:
+			self.pin = pin
+
+		self.say( "Testing outputs, "
+			+ "starting with pin " 
+			+ pp( self.pin ))
+
+		# clear all banks
+		for bank in self.banks:
+			self.io.off( bank + "*" )
+			time.sleep( 0.5 )
+
+		self.io.on( ENABLE_12VDC )
+		self.on( self.pin )
+
+	def on( self, pin = None ):
+		if pin:
+			self.pin = pin
+		self.onoff = 1
+		if TRACE_FLAG:
+			print self.pin, self.onoff 
+		if not NOP_FLAG:
+			self.io.on( self.pin )
+
+	def off( self, pin = None ):
+		if pin:
+			self.pin = pin
+		self.onoff = 0
+		if TRACE_FLAG:
+			print self.pin, self.onoff 
+		if not NOP_FLAG:
+			self.io.off( self.pin )
+
+	def toggle( self, pin = None ):
+		if pin:
+			self.pin = pin
+		self.onoff = 1 - self.onoff
+		if TRACE_FLAG:
+			print self.pin, self.onoff 
+		if not NOP_FLAG:
+			self.io.toggle( self.pin )
+
+	def genPrevNext( self ):
+		self.NextBank = {}
+		self.PrevBank = {}
+		count = len( self.banks )
+
+		def next( bank ):
+			return ( bank + 1 ) % count
+		def prev( bank ):
+			return ( bank + count - 1 ) % count
+
+		for i in xrange( len( self.banks )):
+			bank = self.banks[ i ]
+			self.NextBank[ bank ] \
+				= self.banks[ next( i )]
+			self.PrevBank[ bank ] \
+				= self.banks[ prev( i )]
+
+	def say( self, msg ):
+		self.ss.say( msg )
+
+	def newstate( self, pin, value ):
+		'''return what the new state will be 
+		based on pins A0-3'''
+
+		# state[0] and [1] track transitions of the 2 keys
+		# state[2] tracks transitions into and out of
+		# when both keys are down.
+
+		new = list( self.state )
+		new[ pin ] = int( value )
+		if new[ 0 ] and new[ 1 ]:
+			new[ 2 ] = 1
+		elif not new[ 0 ] and not new[ 1 ]:
+			new[ 2 ] = 0
+		return new
+
+	def change( self, bank, pin, value ):
+
+		pin = int( pin )
+
+		if bank.upper() != "A":
+			print bank + `pin`, ValueWord[ value ]
+			if value == '1':
+				self.say(	
+					pp( bank + `pin` )
+					+ " " 
+					+ ValueWord[ value ])
+			return
+
+		new = self.newstate( pin, value )
+		# print self.state, "->", new
+
+		if self.state[ 2 ]:
+			print "toggle", self.pin
+			if not new[ 2 ]:
+				self.toggle()
+				self.say(	
+					pp( self.pin )
+					+ " " 
+					+ ValueWord[ value ])
+		else:
+			if self.state[ 1 ] > new[ 1 ]:
+				self.off()
+				self.pin = self.succ( self.pin )
+				print "succ",self.pin
+				self.on()
+			
+			elif self.state[ 0 ] > new[ 0 ]:
+				self.off()
+				self.pin = self.pred( self.pin )
+				print "pred", self.pin
+				self.on()
+
+		self.state = new
+	
+	def ChangeBank( self, old, new ):
+		s = ( "changing from bank " 
+			+ pb( old )
+			+ " to bank "
+			+ pb( new ))
+		self.say( s )
+		print s
+		
+	def succ( self, pin ):
+		bank = pin[0]
+		pin = int( pin[1:]) + 1
+		if pin >= BankCount[ bank ]:
+			pin = 0
+			new = self.NextBank[ bank ]
+			self.ChangeBank( bank, new )
+			bank = new
+		return bank + `pin`
+
+	def pred( self, pin ):
+		bank = pin[0]
+		pin = int( pin[1:]) - 1
+		if pin < 0:
+			new = self.PrevBank[ bank ]
+			pin = BankCount[ new ] - 1
+			self.ChangeBank( bank, new )
+			bank = new
+		return bank + `pin`
+
+
+	def operate( self ):
+
+		self.start()
+
+		# monitor inputs
+		self.io.monitor( INPUT_PINS )
+
+		# monitor all outputs
+		if 1:
+			for bank in self.banks:
+				self.io.monitor( bank + "*" )
+				time.sleep( 0.5 )
+		
+		while 1:
+			data = self.io.readline()
+			if not data:
+				exit
+			# print data
+
+			msg = data.split()
+			tim = msg[0]
+			cmd = msg[1]
+			pin = msg[2]
+			val = msg[3]
+
+			if cmd == "CHANGE":
+				self.change( 
+					pin[0], 
+					pin[1:], 
+					val )
+
+if __name__ == "__main__":
+	# eo = ExerciseOutputs([ 'H', 'I', 'J', 'K', 'L', 'M' ])
+	eo = ExerciseOutputs([ 'K', 'L', 'M' ], "K2" )
+	# eo = ExerciseOutputs([ 'H', 'I', 'J' ], "H8" )
+	eo.operate()
+
+

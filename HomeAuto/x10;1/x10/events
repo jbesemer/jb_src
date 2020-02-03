@@ -1,0 +1,74 @@
+# event schedule for 2727 NE Skidmore
+
+# reference points that change with the seasons
+
+dusk = 7pm # 4:30pm
+dawn = 7am
+
+# future events
+
+# dawn	echo wakeup!
+# 6:15am	echo coffee ON
+
+# porch light
+
+dusk	x on porch
+dusk	x di 5 porch
+dawn	x off porch
+
+# living room
+
+dusk	x on lr
+dusk	x di 5 lr
+8:00pm	x br 5 lr
+10:00pm	x di 5 lr
+1am 	x di 5 lr
+2am 	x off lr
+dawn 	x off lr
+
+# family room
+
+dusk	x on fr_normal
+10pm	x di 5 fr_normal
+midnight x di 5 fr_normal
+1am	x di 5 fr_normal
+# 2am	x off fr_all
+# 4am	x off fr_all
+dawn	x off fr_all
+
+# 1st floor bathroom
+
+dusk	x on bath1
+dusk	x di 4  bath1
+10pm	x di 4  bath1
+12pm	x di 4  bath1
+dawn	x off bath1
+
+# mbr
+
+9pm	x on mbr_fan1
+10am	x off mbr_fan1
+11pm	x on mbr1
+# 3am	x off mbr1
+
+# tired of turning this sucker off...
+
+1:00	x off hall
+8:30	x off hall
+9:00	x off hall
+9:30	x off hall
+10:00	x off hall
+noon	x off hall
+8:00pm	x off hall
+9:00pm	x off hall
+11:00pm	x off hall
+
+#	# temporary stuff
+#	
+#	9pm	x on mbr1 
+#	10pm	x on mbr2 
+#	11:30pm	x off mbr1 
+#	12:30	x di 5 mbr2
+#	1:30	x di 5 mbr2
+#	2:30	x di 5 mbr2
+#	3:30	x off mbr2

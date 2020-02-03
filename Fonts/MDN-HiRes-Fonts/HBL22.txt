@@ -1,0 +1,104 @@
+MDN-HiRes-Fonts/HBL22.bft: PTVF 4-bit Anti-Aliased Font ver: 1 max: 256 size: 25 base: 25 res: 7
+
+Addr --Code---  h  w  a  x  y ow lm rm Len Data...
+0000 32 20 ' ' 25  0  7  0  0  0  7  7    1   BitReaderBigEndian( @0 /8: 0x0 )
+Glyph # 32 has no data
+	       ++
+	  0  0 ||
+	  1  1 ||
+	  2  2 ||
+	  3  3 ||
+	  4  4 ||
+	  5  5 ||
+	  6  6 ||
+	  7  7 ||
+	  8  8 ||
+	  9  9 ||
+	 10 10 ||
+	 11 11 ||
+	 12 12 ||
+	 13 13 ||
+	 14 14 ||
+	 15 15 ||
+	 16 16 ||
+	 17 17 ||
+	 18 18 ||
+	 19 19 ||
+	 20 20 ||
+	 21 21 ||
+	 22 22 ||
+	 23 23 ||
+	 24 24 ||
+	       --------+
+	       ++
+
+Addr --Code---  h  w  a  x  y ow lm rm Len Data...
+0004 33 21 '!' 16  5  7  0  3  5  0  0   41   BitReaderBigEndian( @320 /328: 0x266656fffc6fffc6fffc5fffb2eff91cff609ff306fe103fc101640111116eeeb6fffc6fffc5dddb00 )
+    BitReaderBase.__getslice__( 336, 344 ): assertion error: BitReaderBigEndian( @344 /328: 0x266656fffc6fffc6fffc5fffb2eff91cff609ff306fe103fc101640111116eeeb6fffc6fffc5dddb00 )
+
+Variables by last 8 frames, innermost last
+
+Frame ? in DumpFont.py at line 189
+  PTVFontDumper =  <class '__main__.PTVFontDumper'>
+MONOCHROME_CONVERSION_THRESHOLD =  0
+           font =  <__main__.PTVFontDumper object at 0x009DDD30>
+          Match =  <function Match at 0x009E2CF0>
+SHOW_XOFFSET_AS_WIDTH =  False
+        FG_CHAR =  '#'
+SHOW_ADVANCE_AS_WIDTH =  False
+BlankIfNegative =  <function BlankIfNegative at 0x009D6AF0>
+          match =  None
+ENSURE_MINIMUM_RIGHT_MARGIN =  0
+       __file__ =  'DumpFont.py'
+       __name__ =  '__main__'
+           name =  'MDN-HiRes-Fonts/HBL22.bft'
+        BG_CHAR =  ' '
+        __doc__ =  None
+ PTVGlyphDumper =  <class '__main__.PTVGlyphDumper'>
+       Naturals =  <class '__main__.Naturals'>
+CONVERT_XOFFSET_TO_LEFT_MARGIN =  False
+
+Frame DumpGlyphs in DumpFont.py at line 40
+           self =  <__main__.PTVFontDumper object at 0x009DDD30>
+              g =  <__main__.PTVGlyphDumper object at 0x00A68F70>
+            key =  33
+         offset =  48
+
+Frame Dump in DumpFont.py at line 59
+           self =  <__main__.PTVGlyphDumper object at 0x00A68F70>
+
+Frame RowListWithBoxAndNums in DumpFont.py at line 93
+         newRow =  ' 17 14 |6FFFC|'
+              a =  <__main__.Naturals object at 0x00A68FD0>
+              B =  14
+        newRows =  ['  0    |     |', '  1    |     |', '  2    |     |', '  3  0 |26665|  = 26 66 56', '  4  1 |6FFFC|  = ff fc 6f', '  5  2 |6FFFC|  = ff c6 ff', '  6  3 |6FFFC|
+       bitWidth =  20
+           self =  <__main__.PTVGlyphDumper object at 0x00A68F70>
+          bytes =  [219, 0, 0]
+            box =  ['       +-----+', '|     |', '|     |', '|     |', '|26665|', '|6FFFC|', '|6FFFC|', '|6FFFC|', '|5FFFB|', '|2EFF9|', '|1CFF6|', '| 9FF3|', '| 6FE1|', '| 3FC1|'
+              b =  <__main__.Naturals object at 0x00A68FF0>
+           rows =  ['|     |', '|     |', '|     |', '|26665|', '|6FFFC|', '|6FFFC|', '|6FFFC|', '|5FFFB|', '|2EFF9|', '|1CFF6|', '| 9FF3|', '| 6FE1|', '| 3FC1|', '| 164 |', '|111
+           byte =  0
+            row =  '|6FFFC|'
+
+Frame GetBitsAsBytes in c:\Documents and settings\jb\Desktop\Ensequence\fonts\BinaryReader.py at line 281
+              i =  0
+           _[1] =  []
+           self =  <BinaryReader.BitReaderBigEndian object at 0x009EB650>
+          width =  20
+
+Frame GetBits in c:\Documents and settings\jb\Desktop\Ensequence\fonts\BinaryReader.py at line 274
+          width =  8
+           self =  <BinaryReader.BitReaderBigEndian object at 0x009EB650>
+            pos =  336
+
+Frame __getslice__ in c:\Documents and settings\jb\Desktop\Ensequence\fonts\BinaryReader.py at line 457
+             lo =  336
+           self =  <BinaryReader.BitReaderBigEndian object at 0x009EB650>
+             hi =  344
+
+Frame __getslice__ in c:\Documents and settings\jb\Desktop\Ensequence\fonts\BinaryReader.py at line 260
+          width =  8
+           self =  <BinaryReader.BitReaderBigEndian object at 0x009EB650>
+             hi =  344
+             lo =  336

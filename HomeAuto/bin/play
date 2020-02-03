@@ -1,0 +1,10 @@
+PLAY=/usr/bin/play
+SOUND=$HOME/lib/sounds
+
+for FILE in $*
+do
+	if	test -f "$FILE"	
+	then	$PLAY $FILE
+	else	$PLAY $SOUND/$FILE.wav
+	fi
+done

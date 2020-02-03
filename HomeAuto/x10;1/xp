@@ -1,0 +1,248 @@
+#!/usr/local/bin/python
+
+from __future__ import nested_scopes
+
+import os, sys
+import string, re
+import select
+import time
+import rawio
+
+NFlag = 0		# go through motions but don't send anything
+
+command_synonyms =  {
+	"alloff":	"A0", 
+	"allon":	"L1", 
+	"lightson":	"L1", 
+	"lightsoff":	"L0", 
+	"lights1":	"L1", 
+	"lights0":	"L0",
+	}
+
+alias_file = "x10_aliases"
+
+address_aliases = {}
+
+replyTimeout = 3
+timeoutBaseline = 1.5
+timeoutIncrement = 0.25
+
+# tty parameters
+
+tty_name = "/dev/ttyS1"
+stty_flags = ( "2400 cs8 cstopb -echo -echoctl -ignbrk"
+		+ " -ignpar icrnl -isig -icanon -tostop" )
+
+
+#################################
+# misc utilities
+
+def timestamp():
+	year,month,day,hour,min,sec,wd,jd,dst = time.localtime()
+	return "%02d:%02d:%02d" % ( hour, min, sec )
+
+
+##################################
+# read alias file
+
+def load_address_aliases( filename ):
+
+	aliases = open( filename )
+	if not aliases:
+		print "Warning: cannot open address alias file:", filename
+
+	for line in aliases.readlines():
+		line = re.sub( "#.*", "", line )
+		line = re.sub( "[ \t]+", " ", line )
+		line = line.strip()
+
+		if line:
+			if "=" in line:
+				name, alias = line.split( "=", 1 )
+				name = name.strip().lower()
+				alias = alias.strip().lower()
+				address_aliases[ name ] = alias
+				# print "alias", name, " = ", alias
+				continue
+
+			if "[" in line:
+				continue
+
+			print "Syntax error in line:", line
+
+	aliases.close()
+			
+load_address_aliases( alias_file )
+
+##################################
+# tty I/O
+
+class RawTtyIO( rawio.RawIO ):
+
+	def __init__( self, tty_name ):
+
+		if NFlag:
+			return
+
+		# set proper speed, etc.
+
+		rv = os.system( "stty <%s %s" % ( tty_name, stty_flags ))
+		if ( rv >> 8 ) != 0:
+			print "warning: unable to stty", tty_name
+
+		rawio.RawIO.__init__( self, tty_name, exception=1 )
+		self.settimeout( replyTimeout )
+
+		# not sure but I think we need this to 
+		# clear any pending error
+		# before sending the X10 some 'real' commands.
+
+		self.send( "\r" )
+		self.getline()
+
+	def send( self, cmd, echo=1 ):
+		self.put(  cmd + "\r" )
+		if cmd and echo:
+			ts = timestamp()
+			print ts, "send:", cmd
+
+	def getline( self, timeout=None, echo=1 ):
+		try:
+			res = rawio.RawIO.getline( self, timeout )
+		except rawio.RawIOTimeout, ex:
+			res = None
+
+		if echo:
+			ts = timestamp()
+			print ts, "recv:", res
+		return res
+
+tty = RawTtyIO( tty_name )
+
+def command_response( cmd, retry=0 ):
+	"send the command and get the response, if any"
+
+	# send the command
+	tty.send( cmd )
+
+	# fake success
+	if NFlag:
+		ts = timestamp()
+		cmd = "!" + cmd
+		print ts,"recv:", cmd
+		return "!" + cmd
+
+	# return response
+	return tty.getline()
+
+def send_command( cmd, maxRetries=9):
+	"send a command and retry until a proper reply is received"
+
+	results = []
+
+	for retry in xrange( maxRetries ):
+
+		if retry:
+			time.sleep( 1.0 )
+
+		res = command_response( cmd, retry )
+
+		if res == None:
+			print "tty.getline() timed out"
+			continue
+
+		elif res == "":
+			print "tty.getline() returned ''"
+			continue # no retry
+
+		if "\r" in res:
+			print "carriage return"
+
+		if "\n" in res:
+			print "newline"
+
+		if res[0] == "?":
+			print " -- ERROR returned from X10", res
+
+		elif res == ( "!" + cmd ) or res == ( ">" + cmd ):
+			print ""
+			results.append( res )
+			return results
+
+		elif res[0] == ">":
+			results.append( res )
+
+		else:
+			print " -- unexpected result (", res, ")"
+
+	print "\nRetry count exceeded"
+
+
+
+#################################
+# argument processing
+
+def normalize_command( cmd ):
+	cmd = cmd.lower()
+	if cmd in command_synonyms.keys():
+		cmd = command_synonyms[ cmd ] 
+	return cmd[:2].upper()
+
+def normalize_address( addr ):
+	house = addr[0].upper()
+	unit = addr[1:]
+
+#	print "normalize: addr -> house, unit"
+
+	if house in "ABCDEFGHIJKLMNOP":
+		return "%s%02d" % ( house, int( unit ))
+	
+	print "Warning: unable to normalize illegal address: addr"
+	return ""
+
+def process_command( cmd, addr ):
+	cmd = normalize_command( cmd )
+	addr = normalize_address( addr )
+	if cmd and addr:
+		house = addr[0]
+		send_command( addr )
+		send_command( house + cmd ) 
+
+def process_arg( command, arg ):
+	arg = arg.lower()
+
+	# print "process_arg", command, arg
+
+	if re.match( "^[0-9]+$", arg ):
+		if command == "DI" or command == "BR":
+			send_command( "R%02d" % arg )
+			# replyTimeout += timeoutIncrement * int( arg )
+			return
+
+		print "Warning: repeat count ignored"
+		return
+
+	if arg in address_aliases.keys():
+		args = address_aliases[ arg ].split()
+		# print "aliases", args
+		process_arg_list( command, args )
+
+	else:
+		# print "command arg"
+		process_command( command, arg )
+
+def process_arg_list( cmd, args ):
+	# print "process_arg_list", cmd, args
+	for arg in args:
+		process_arg( cmd, arg )
+
+# main program
+
+def main():
+	# replyTimeout = timeoutBaseline
+	if len( sys.argv ) > 1:
+		process_arg_list( 
+			sys.argv[ 1 ],
+			sys.argv[ 2: ])
+
+main()

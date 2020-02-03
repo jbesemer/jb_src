@@ -1,0 +1,76 @@
+#define CMD_GET				0	// @ read an input pin
+#define CMD_SET				1	// a set an output pin
+#define CMD_GETMASK			2	// b read monitor mask for a pin
+#define CMD_SETMASK			3 	// c set monitor mask for a pin
+#define CMD_POLL			4	// d read all input pins & report any changes
+
+#define CMD_GET_BANK		5	// e read all input pins
+#define CMD_SET_BANK		6	// f set all output pins to a value
+#define CMD_GETMASK_BANK	7	// g read all input pins
+#define CMD_SETMASK_BANK	8	// h set all output pins to a value
+
+#define CMD_POLL_BANK		9	// i read all input pins on all banks & report any changes
+#define CMD_SEND_BANK_RESULT 10	// j send .prev results to host
+#define CMD_FETCH_BANK		11	// k read all input pins
+
+#define CMD_CLEAR_BANK		12	// l clear all output pins
+#define CMD_PULSE			13	// m pulse an output pin
+#define CMD_ERROR			14	// n send error message
+#define CMD_INIT			15	// o return type of hw interface
+
+#define CMD_SEND1_0			16	// p send 1 byte to channel 0
+#define CMD_SEND1_1			17	// q send 1 byte to channel 1
+#define CMD_SEND1_B			18	// r send 1 byte to channel B
+#define CMD_SEND_Z0			19	// s send N bytes to channel 0
+#define CMD_SEND_Z1			20	// t send N bytes to channel 1
+#define CMD_SEND_B			21	// u send N bytes to channel B
+#define CMD_ENABLE			22	// v activate a channel
+#define CMD_DISABLE			23	// w deactivate a channel
+
+#define CMD_SENDK			24	// x send n K chars to host
+#define CMD_DEBUG			25	// y debug commands
+
+
+
+	{ IO,		"bp",	},	// CMD_GET
+	{ IO,		"bpv",	},	// CMD_SET
+	{ IO,		"bp",	},	// CMD_GETMASK
+	{ IO,		"bpv",	},	// CMD_SETMASK
+	{ ID,		"bpv",	},	// CMD_POLL
+
+	{ IO|ALLB,	"b",	}, 	// GET_BANK
+	{ OD|ALLB,	"bm",	},	// CMD_SET_BANK
+	{ IO,		"b",	},	// CMD_GETMASK_BANK
+	{ IO,		"bm",	},	// CMD_SETMASK_BANK
+
+	{ ID|ALLB,	"b",	}, 	// POLL_BANK
+	{ IO|ALLB,	"b",	},	// CMD_SEND_BANK_RESULT
+	{ ID|ALLB,	"",		},	// CMD_FETCH_BANK		
+
+	{ OD|ALLB,	"b",	},	// CLEAR_BANK
+	{ OD,		"bpv",	},	// CMD_PULSE
+	{ IO,       "",		},	// CMD_ERROR
+	{ IO,       "",		},	// CMD_INIT
+
+	{ IO,		"c",	},	// CMD_SEND1_0
+	{ IO,		"c",	},	// CMD_SEND1_1
+	{ IO,		"c",	},	// CMD_SEND1_B
+	{ IO,		"",		},	// CMD_SEND_Z0
+	{ IO,		"",		},	// CMD_SEND_Z1
+	{ IO,		"",		},	// CMD_SEND_B
+	{ IO,		"hfr",	},	// CMD_ENABLE
+	{ IO,		"h",	},	// CMD_DISABLE
+
+	{ IO,		"*",	},	// CMD_SENDK
+	{ IO,		"*",	},	// CMD_DEBUG
+
+
+
+	switch( c2b( *args )){
+	case 1:
+		scanForPlcBoards();
+		break;
+
+	case 2:
+		IO_Debug();
+		break;

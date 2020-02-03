@@ -1,0 +1,55 @@
+
+Variables by last 8 frames, innermost last
+
+Frame ? in DumpFont.py at line 189
+  PTVFontDumper =  <class '__main__.PTVFontDumper'>
+MONOCHROME_CONVERSION_THRESHOLD =  8
+          Match =  <function Match at 0x009E3CF0>
+SHOW_XOFFSET_AS_WIDTH =  False
+        FG_CHAR =  '#'
+SHOW_ADVANCE_AS_WIDTH =  True
+BlankIfNegative =  <function BlankIfNegative at 0x009D7AF0>
+          match =  None
+ENSURE_MINIMUM_RIGHT_MARGIN =  0
+       __file__ =  'DumpFont.py'
+       __name__ =  '__main__'
+           name =  'MDN-HiRes-Fonts/HBL22.bft'
+        BG_CHAR =  ' '
+        __doc__ =  None
+ PTVGlyphDumper =  <class '__main__.PTVGlyphDumper'>
+       Naturals =  <class '__main__.Naturals'>
+CONVERT_XOFFSET_TO_LEFT_MARGIN =  False
+
+Frame __init__ in DumpFont.py at line 21
+           self =  <__main__.PTVFontDumper object at 0x009DEE30>
+       filename =  'MDN-HiRes-Fonts/HBL22.bft'
+
+Frame ConvertToMonochrome in c:\Documents and settings\jb\Desktop\Ensequence\fonts\PTVFontFile.py at line 238
+      threshold =  8
+           self =  <__main__.PTVFontDumper object at 0x009DEE30>
+          value =  <PTVFontFile.PTVGlyph4 object at 0x009EC690>
+            key =  33
+
+Frame AsPTVGlyph1 in c:\Documents and settings\jb\Desktop\Ensequence\fonts\PTVFontFile.py at line 189
+       rowindex =  0
+           bits =  <BinaryReader.BitWriterBigEndian object at 0x00A68F90>
+        nibbles =  [2, 6, 6, 6, 5]
+         nibble =  2
+         volume =  80
+      threshold =  8
+           data =  <BinaryReader.ByteWriter instance at 0x00A723F0>
+           self =  <PTVFontFile.PTVGlyph4 object at 0x009EC690>
+
+Frame PutBit in c:\Documents and settings\jb\Desktop\Ensequence\fonts\BinaryReader.py at line 378
+            bit =  0
+            pos =  -1
+           self =  <BinaryReader.BitWriterBigEndian object at 0x00A68F90>
+
+Frame AdvancePos in c:\Documents and settings\jb\Desktop\Ensequence\fonts\BinaryReader.py at line 371
+          width =  1
+           self =  <BinaryReader.BitWriterBigEndian object at 0x00A68F90>
+            pos =  0
+
+Frame Widen in c:\Documents and settings\jb\Desktop\Ensequence\fonts\BinaryReader.py at line 494
+          width =  1
+           self =  <BinaryReader.BitWriterBigEndian object at 0x00A68F90>

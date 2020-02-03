@@ -1,0 +1,69 @@
+`l1.0
+`v1
+Hello. My name is Wade.
+I believe we may have met before.
+Would you like to meet my sister? 
+
+`v2
+ Hello.  My name is Flo.
+Later you'll meet some more of our family,  but first, let me tell you about our jobs.
+Humans feed us text, and we pronounce it with our synthetic voices.
+We produce our voices with a set of rules.
+Our human teachers keep improving our rules, so our speech gets better and better.
+
+`v1
+All of the sentences we've said so far were given to us as ordinary text.
+We figured out the intonation patterns ourselves.  But users can change how we sound,
+with simple annotations.  
+For example, users can tell us to emphasize a specific word in a sentence. 
+Suppose another machine claimed to be the best talking computer.
+
+I could then respond,`p300 no, `p250 `3 I'm the best
+talking computer.
+Or if someone told me I was the best talking monster,
+I could say `%%, `p250 no, `p250 I'm the best
+talking `3 computer.  
+`2 Other simple marks help me to express my `2 emotions.  
+For example, if I were tired I could `0 say,
+`vs42 `vf36 `vb45  I'm feeling really slow `0 today.
+`v1 Or if I were on a rocketship I could `0 say,
+`p250 `vf37 `vb95 This is really exciting.  
+
+`v2
+`1 We're not the only `0 ones who are so `0 clever.
+The rest of our `0 family is `2 just as `0
+expressive as `2 we are.   Let us introduce you to some of
+the `2 other members of our family.  
+
+`v1
+Our baby brother's `0 name is Bobbie.  He's still very little,
+but he already talks `0 really well.  
+
+`v3
+Where's my mommy?  `vf31 `vb98 I lost my teddy `0 bear.  
+
+`v1
+And our grandmother is here too.  Hi `0 grandma `%.  
+
+`v7
+Well `2 hello Wade `%.  You're such a good grandson,
+and you're `1 so eloquent.  
+Your father would've been `1 very proud of you.  
+
+`v1
+`2 Thanks grandma `%.
+There are `2 other members of our family `2 too.
+
+You can easily change any of us to customize our voices for `2 your needs.
+`vh100 `vb55 For example, you can make me bigger so I'll sound like a giant.
+`v3 `vr60 Or you can `0 make Bobbie `0 sound like he has a `0
+sore throat.
+`v8 `vs85 This is Grandpa talking really fast.
+`v2 `vy100 And this is Flo whispering so she can tell you a secret.
+`v1 `vb100 `vv90 This is Wade pretending to be a woman.
+`v3 `vb85 `vf6 And this is Bobbie when he's really bored.
+
+`v1
+The possibilities are endless, but you've probably `0 heard enough
+for `0 now.  
+Goodbye, and thanks for listening `/.

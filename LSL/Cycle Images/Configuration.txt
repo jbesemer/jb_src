@@ -1,0 +1,13 @@
+# CHAN=77
+# TRACE=1
+
+default = threegraces
+
+back_alpha = 0.0
+side_alpha = 0.0
+all_fullbright = 1
+
+oceana, 6,9,fullbright
+oceana2, 6,9,fullbright
+otherlastsupper, 9,6
+threegraces, 6,9

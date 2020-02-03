@@ -1,0 +1,182 @@
+CYCLE IMAGE SCRIPT
+
+1. OVERVIEW
+
+The Cycle Image script facilitates the display of multiple textures on the face(s) of a cube.  Images are presented one at a time, in the same order they appear in the canvas' inventory.  Images are displayed on the cube's front ("+X" face).  Optionally the current image may be displayed simultaneously on both the front and back ("-X" face).  The cube typically is quite thin in the X dimension, so it appears like a painting's canvas.  Herein, we use the term "canvas" for the associated cube.
+
+2. AUTOMATICALLY ADJUSTS ASPECT RATIO
+
+A principal feature of Cycle Image is that it adjusts the shape of the canvas, according to the aspect ratio of each texture being displayed.  Each time a different texture is displayed, the height and width of the canvas are adjusted to match the aspect ratio of the new image.  Also, if the size of the canvas is changed manually, the script will adjust the shape to match the aspect ratio of the current image.  The position (center) of the canvas and its thickness are never changed by the script.
+
+These adjustments attempt to be "area-preserving".  That is, the canvas will normally have the same area before and after each adjustment.  The exception is if an adjustment calls for an image that is taller or wider than 10 meters, the maximum extent of an SL object.  In this case, the too-large dimension is truncated to 10 meters, and the other side is reduced to maintain the proper aspect ratio.
+
+E.g., if a square image is shown in a canvas that is 8x8, and the next image has an aspect ratio of 1:4, the desired size of 4x16 is impossible;  consequently the canvas will be shrunk to 2.5x10.  Subsequent images will be preserved at this size, so the next time the square image is displayed, it'll be show at 5x5.  Once all images have been displayed once, there will be no further need to reduce the canvas' area (unless new images are added that perturb this equilibrium).
+
+3. OTHER FEATURES
+
+    * Default image.  One image in the collection is designated the Default image.  The default image shows when the script initializes, but more importantly, the canvas may be commanded to revert to the default image at any time.  See the DEFAULT directive, below.
+
+    * Locked canvas.  A canvas may be "locked" or "unlocked".  When locked, only the owner can operate it, while when unlocked, the canvas will respond to anybody.  The script normally starts up in the unlocked state.  See the LOCKED setting, below.
+
+    * Auto Cycle.  Normally, images advance only when the canvas is touched.  Auto Cycle causes the images to automatically change.  See the AUTO_CYCLE, and CYCLE_TIME settings, below.
+
+    * Menu.  Normally, clicking on the canvas advances to the next image.  However, pressing the left button and holding it for a few seconds will bring up a menu, which allows other actions.  In particular, it provides for moving forwards or backwards through the images, showing or specifying the default image, locking, unlocking, and starting or stopping auto cycle mode.
+
+    * Remote Control.  In addition to touch and menu commands, the canvas will respond to commands received via chat on a particular channel.  This allows security systems to do things like lock the canvas or revert to the default image when the owner is not around.  Anything that can be done via the menu may also be done by remote control.  See the REMOTE CONTROL section, below.
+
+    * Image and collection names.  The name of the object and the name of the current image are normally displayed above the canvas.  The color and alpha of this text may be controlled by the TEXT_COLOR and TEXT_ALPHA directives.
+
+The idea is that the object name is the name of the image collection, and the image names are the... image names.  If the object is selected for editing, the "Description" property will show the name of the current image.
+
+Objects and images can have any valid name.  But since the name of the object and the inventory names of the textures are visible to the user, there may be benefit in using human-friendly names like "The Other Last Supper" instead of "theotherlastsupper".
+
+4. SETUP
+
+The setup procedure is simple:
+
+    1. Create your canvas object (a cube), edit it, and select the inventory tab.
+    2. Copy all the textures you wish to display into the canvas' inventory.
+    3. Copy a note card in the canvas' inventory called "Configuration" [contents described below].
+    4. Copy the Cycle Image script into the canvas' inventory.
+    5. Edit the object's size to approximately the size and shape you want.
+
+Upon adding the script, the object should "initialize", and eventually show the default image on the front surface of the canvas.
+
+You can manually edit the shape, position, and most properties of the canvas at any time.  Changes to the width or height (Y or Z axes, respectively), will cause the canvas to re-adjust the size to match the aspect ratio.
+
+You may add or remove images from the canvas' inventory at any time.  Each change to the inventory or its contents will cause the canvas to re-initialize.
+
+5. CONFIGURATION FILE ESSENTIALS
+
+Defining the per-image aspect ratios is the principal purpose of the configuration file.  There is no way for the script to obtain this information from the textures themselves, so it must be explicitly specified by the user.
+
+The minimal configuration file requires a line of text for each texture.  The line consists of 3 comma separated fields, as follows:
+
+    texture name, horizontal, vertical
+
+E.g.:
+
+    threegraces, 6, 9
+
+The texture name must match the name in the canvas' inventory.  Upper or lower case distinctions do NOT matter within the config file.  However, if the texture name includes spaces, those spaces must appear in the appropriate places in the texture name field.
+
+The horizontal and vertical numbers define the aspect ratio.  Individual extents are probably easier to specify than to do the arithmetic to reduce it to a numerical ratio.  Think of it as a common fraction, e.g., 6/9, rather than 0.666666666666.  These numbers are NOT necessarily the sizes of the texture, though the actual original image sizes will work as well as anything else.
+
+You do NOT have to specify the aspect ratio for any textures that are square.  This is the default for all images, unless expressly overridden in the configuration file.  There's no harm in additionally specifying 1:1 aspect ratios, but it's unnecessary.
+
+Finally, within a configuration file, spaces and blank lines generally do not matter.  The only exception is that spaces within texture names must match the names in inventory.  Additionally, anything following a "#" sign is ignored.  This allows you to document your configuration file, and simplifies temporarily disabling specific configuration file settings.
+
+6. FULL-BRIGHT
+
+Sometimes, it's desirable to display some or all images back-lit.  In SL parlance, the canvas' face is set to "full-bright," resulting in a brighter image.  In the configuration file, this may be specified by adding an additional field to the texture's configuration line: the word "fullbright".  For square images, the aspect ratio numbers may be omitted.  E.g.:
+
+    oceana, 6, 9, fullbright
+    origin, fullbright
+
+You can even specify it in two steps.  The following is the same as the first example immediately above:
+
+    oceana, 6, 9
+    oceana, fullbright
+
+There are additional configuration file settings (elaborated below) that provide for making ALL images full-bright, and for suppressing the full-bright property for all images.  See ALL_FULLBRIGHT and NO_FULLBRIGHT, below.
+
+7. CONFIGURATION FILE DETAILS
+
+The minimum requirement for a configuration file is just the aspect ratios for non-square images.  But there are numerous other items about script behavior you may wish to modify.  This section describes all of the optional configuration file parameters.
+
+These parameters are specified in the configuration file, as follows:
+
+    PARAMETER_NAME = parameter_value
+
+Each parameter requires specific value types.  These are specified below in parentheses following the parameter name.
+
+    * CHAN = (integer) -- controls which channel the script listens to for remote commands.  Initially this is channel 77.  Any other channel may be chosen.  Setting it to 0 causes the script to NOT listen for any remote commands (thus there is no way to tell the script to listen on open chat for commands).
+
+    * DEFAULT = (Texture) -- specify the default image name.  The default is displayed on startup, and in response to the "Show Default" command.
+
+    * CYCLE_TIME = (float > 0.0) -- sets the number of seconds between image changes in auto cycle mode.  Note, this is the minimum delay.  Lag and other vagaries in SL may slow the action.
+
+    * AUTO_CYCLE = (integer 0 or 1) -- if set to non-zero, causes the canvas to enter auto cycle mode when it starts up (is rezzed or reset).  Otherwise auto cycle mode must be manually started after rezzing the object.
+
+    * LOCKED = (integer 0 or 1) -- if set to non-zero, causes the canvas to be locked after initialization.  Otherwise, the canvas must be locked manually.
+
+    * ALL_FULLBRIGHT = (integer 0 or 1) -- if non-zero, causes ALL images to be displayed in FULLBRIGHT mode, ignoring any settings in the configuration file.
+
+    * NO_FULLBRIGHT = (integer 0 or 1) -- if non-zero, causes NO images to be displayed in FULLBRIGHT mode, ignoring any settings in the configuration file.  If you specify ALL_FULLBRIGHT and NO_FULLBRIGHT, ALL_FULLBRIGHT will prevail.
+
+    * BOTH_SIDES = (integer 0 or 1) -- if non-zero, causes the selected image to be displayed on both sides of the canvas (+X and -X faces).  Normally, only the +X face shows the image.
+
+    * TEXT_COLOR = (Color) -- controls the color of the object/image names above the canvas.
+
+    * TEXT_ALPHA = (float 0.0 to 1.0) -- controls the alpha value of the object/image names above the canvas.  Set to 0.0 to make the text invisible.
+
+    * DWELL = (float > 0.0) -- sets the number of seconds the left mouse button must be held down to activate the menu.  Longer launches menu, shorter is treated as a "touch".  Set to 2 sec. by default.  Probably no good reason to change this.
+
+    * TRACE = (0 or 1) -- if set to non-zero, causes the script to emit copious arcane, technical details about its internal operation.  Typically only the developer would be interested in any of it.
+
+The script considers the canvas to be divided into 3 sections: the front, the back and the sides.  The canvas is typically thin, so the sides normally are quite small.  However, there may be aesthetic reasons for making the canvas thicker, and anyway, even the thinnest sides are visible.  The script provides for controlling the texture, color and alpha values of each of these three sections.  The default settings (black, opaque, blank back and sides) are probably suitable for most applications.  But, for example, I sometimes want the back and sides to be invisible, so I set their alpha to 0.0.  Better to have these settings and not use them, rather than need them and not have them.
+
+    * BACK_TEXTURE = (Texture) -- texture on the back.  Default is TEXTURE_BLANK.
+
+    * SIDE_TEXTURE = (Texture) -- texture on the sides.  Default is TEXTURE_BLANK.
+
+    * FRONT_TEXTURE = (Texture) -- texture on the front.  Default is TEXTURE_PLYWOOD.  This texture only shows briefly at startup, as the rest of the time the actual images are shown.
+
+    * BACK_COLOR = (Color) -- color of the back.  Default is black.
+
+    * SIDE_COLOR = (Color) -- color of the sides.  Default is black.
+
+    * FRONT_COLOR = (Color) -- color of the front.  Default is white.
+
+    * BACK_ALPHA = (float 0.0 to 1.0)  -- alpha of the back.  Default is opaque (1.0).
+
+    * SIDE_ALPHA = (float 0.0 to 1.0)  -- alpha of the sides.  Default is opaque (1.0).
+
+    * FRONT_ALPHA = (float 0.0 to 1.0)  -- alpha of the front.  Default is opaque (1.0).
+
+8. COLOR AND TEXTURE PARAMETER VALUES
+
+Colors may be specified in one of two forms:
+
+    * The Red/Green/Blue vector form: <r,g,b>, where r,g,b are numbers between 0 and 1, representing the relative magnitude of each primary color.  E.g., <1,0,0> for pure red, and <0.5, 0.5, 0.5> for gray.
+
+    * One of the following names: BLACK, WHITE, RED, GREEN, BLUE, YELLOW.
+
+Textures may be specified in one of three forms:
+
+    * The name of a texture in the canvas' inventory.  This is not too handy, as the texture will also be shown as an image.
+
+    * As the asset key for the texture.
+
+    * As one of the following names for standard textures: BLANK, DEFAULT, PLYWOOD, TRANSPARENT, MEDIA.
+
+9. REMOTE COMMANDS
+
+The script will listen on a designated channel (default 77) for remote commands.  Basically, any command that appears on the menu may be sent over the remote control channel.
+
+If the canvas is locked, then the commands must be sent by the owner or an object owned by the owner.  If the canvas is unlocked, then anybody may send the commands.
+
+Commands are as follows (text must be an exact match, including case):
+
+    Show Default -- show the default image
+
+    Set Default -- make the current image the default image
+
+    Show Next -- show next image
+
+    Show Prev -- show previous image
+
+    Show Trace -- turn on trace messages
+
+    Hide Trace -- turn off trace messages
+
+    Start Cycle -- start auto-cycle
+
+    Stop Cycle -- stop auto-cycle
+
+    Lock -- lock the canvas
+
+    Unlock -- unlock the canvas
+
+///
+

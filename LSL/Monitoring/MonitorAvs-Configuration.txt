@@ -1,0 +1,40 @@
+TRACE = 0
+# TESTING = 0
+# RETRY_COUNT_MAX = 3
+# REPEAT_INTERVAL = 200
+TRACE=1
+
+NAME=Hiroshi Sakai
+
+# NAME=Annamaria Ansar
+NAME=BaHaCa Hennah
+NAME=Bellisima Benelli
+NAME=Blissfull Avedon
+NAME=Bluebell March
+NAME=Callipygian Christensen
+NAME=Catz Mora
+NAME=Cellandra Zon
+NAME=Christal Aya
+# NAME=Daffodil Rexen
+
+NAME=Delinda Dyrssen
+NAME=Doreen Halley
+# NAME=Glory Aristocrat
+NAME=Horizon Darkstone
+# NAME=Kelli Georgette
+NAME=Larkworthy Antfarm
+# NAME=Lash Xevious
+NAME=Mariposa Rayna
+NAME=Miso Tiramisu
+NAME=Noisey Lane
+
+NAME=Noma Falta
+NAME=Petal Sands
+NAME=Phacelia Furse
+# NAME=Poshcat Tigerpaw
+NAME=Purdy Forcella
+# NAME=Shazuka Tigerpaw
+# NAME=Skyler Barrymore
+NAME=Sundra Petrov
+NAME=TS Laszlo
+NAME=Willow Delicioso

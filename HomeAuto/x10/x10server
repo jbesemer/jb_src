@@ -1,0 +1,2 @@
+cd /home/jb/x10
+python x10server.py $*

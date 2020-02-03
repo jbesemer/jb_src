@@ -1,0 +1,20 @@
+#!/usr/local/bin/python
+
+import ioclient
+import string
+import time
+
+pins = "B0-B7"
+pins = "J*"
+pins = "B*"
+
+io = ioclient.IoClient( "onoff", 1 )
+io.open()
+
+while 1:
+	io.on( pins )
+	time.sleep( 0.100 )
+	io.off( pins )
+	time.sleep( 0.250 )
+
+io.close()

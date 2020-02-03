@@ -1,0 +1,45 @@
+#!/usr/bin/python
+
+import os, sys, regex
+from time import time 
+from string import *
+from UserFile import UserFile
+
+# serial input device
+
+TTY = "/dev/ttyS1"
+input = open( TTY, "rb" )
+
+########################################
+# form a timestamp
+
+prev_tv = (0,0,0,0)
+
+def ts():
+	ta = localtime()
+	next_tv = ( t[0], t[1], t[2], t[8])
+	if prev_tv != next_tv:
+		prev_tv = next_tv
+		outs( "#" + asctime( ta ))
+		ta = localtime()
+	return "%02d:%02d:%02d " % ( t[3], t[4], t[5] )
+
+
+########################################
+# startup initialization
+
+def init():
+	pass
+
+########################################
+# main loop
+
+def main():
+
+	while 1:
+		line = input.readline()
+		print ts(), line,
+
+init()
+main()
+

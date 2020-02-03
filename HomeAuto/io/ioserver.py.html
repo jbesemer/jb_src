@@ -1,0 +1,335 @@
+<pre>
+<tt>
+<i><font color=#9A1900>#!/usr/local/bin/python2.2</font></i>
+
+<b><font color=#0000FF>import</font></b> sys<font color=#990000>,</font> os<font color=#990000>,</font> string
+<b><font color=#0000FF>import</font></b> socket<font color=#990000>,</font> thread
+<b><font color=#0000FF>import</font></b> signal<font color=#990000>,</font> time
+<b><font color=#0000FF>import</font></b> Queue
+<b><font color=#0000FF>import</font></b> re
+
+sys<font color=#990000>.</font>path<font color=#990000>.</font><b><font color=#000000>append</font></b><font color=#990000>(</font> <font color=#FF0000>"/home/jb/lib/python"</font> <font color=#990000>)</font>
+
+<b><font color=#0000FF>from</font></b> ConnectionList <b><font color=#0000FF>import</font></b> <font color=#990000>*</font>
+<b><font color=#0000FF>from</font></b> Connection <b><font color=#0000FF>import</font></b> <font color=#990000>*</font>
+<b><font color=#0000FF>from</font></b> select <b><font color=#0000FF>import</font></b> <font color=#990000>*</font>
+<b><font color=#0000FF>from</font></b> DevTab <b><font color=#0000FF>import</font></b> <font color=#990000>*</font>
+<b><font color=#0000FF>from</font></b> iocommon <b><font color=#0000FF>import</font></b> <font color=#990000>*</font>
+<b><font color=#0000FF>import</font></b> Serial
+<b><font color=#0000FF>from</font></b> util <b><font color=#0000FF>import</font></b> <font color=#990000>*</font>
+<b><font color=#0000FF>import</font></b> iom
+<b><font color=#0000FF>import</font></b> tty
+<b><font color=#0000FF>import</font></b> daemonize<font color=#990000>,</font> logfile
+
+<i><font color=#9A1900>###############################################</font></i>
+<i><font color=#9A1900># server to coordinate multiple clients commanding </font></i>
+<i><font color=#9A1900># and monitoring 'io' subsystem.</font></i>
+<i><font color=#9A1900>###############################################</font></i>
+
+<i><font color=#9A1900>###############################################</font></i>
+<i><font color=#9A1900># TODO list:</font></i>
+<i><font color=#9A1900>#</font></i>
+<i><font color=#9A1900>#	io watchdog</font></i>
+<i><font color=#9A1900>#	serial ports</font></i>
+<i><font color=#9A1900>#	reflect state results back to clients</font></i>
+<i><font color=#9A1900>#</font></i>
+<i><font color=#9A1900>#	find and FIX source of data loss</font></i>
+
+<i><font color=#9A1900>###############################################</font></i>
+<i><font color=#9A1900># module global vars and constants</font></i>
+
+ECHOFLAG <font color=#990000>=</font> <font color=#993399>1</font>		<i><font color=#9A1900># =&gt; echo all comm with IO</font></i>
+ENABLESOUND <font color=#990000>=</font> <font color=#993399>0</font>		<i><font color=#9A1900># =&gt; start/stop sounds</font></i>
+
+logfile<font color=#990000>.</font>DEBUG <font color=#990000>=</font> <font color=#993399>0</font>
+daemonize<font color=#990000>.</font>DEBUG <font color=#990000>=</font> <font color=#993399>0</font>
+
+daemonize<font color=#990000>.</font><b><font color=#000000>Daemonize</font></b><font color=#990000>(</font><font color=#990000>)</font>
+
+log <font color=#990000>=</font> logfile<font color=#990000>.</font><b><font color=#000000>LogFileServer</font></b><font color=#990000>(</font> <font color=#FF0000>"io.log"</font><font color=#990000>,</font> LOGPORT<font color=#990000>,</font> SERVERHOST <font color=#990000>)</font>
+
+<i><font color=#9A1900># enable connection to SoundServer or else bypass</font></i>
+
+<b><font color=#0000FF>if</font></b> ENABLESOUND<font color=#990000>:</font>
+	<b><font color=#0000FF>import</font></b> soundclient
+	Sound <font color=#990000>=</font> soundclient<font color=#990000>.</font><b><font color=#000000>SoundServer</font></b><font color=#990000>(</font><font color=#990000>)</font>
+<b><font color=#0000FF>else</font></b><font color=#990000>:</font>
+	<b><font color=#0000FF>class</font></b> SoundServer<font color=#990000>:</font> 
+		<b><font color=#0000FF>def</font></b> <b><font color=#000000>sendspeech</font></b><font color=#990000>(</font> self<font color=#990000>,</font> text <font color=#990000>)</font><font color=#990000>:</font>
+			<b><font color=#0000FF>pass</font></b>
+	Sound <font color=#990000>=</font> <b><font color=#000000>SoundServer</font></b><font color=#990000>(</font><font color=#990000>)</font>
+
+<i><font color=#9A1900># I/O queues for serial I/O</font></i>
+
+CommQOut <font color=#990000>=</font> Queue<font color=#990000>.</font><b><font color=#000000>Queue</font></b><font color=#990000>(</font><font color=#990000>)</font>
+
+<b><font color=#0000FF>def</font></b> <b><font color=#000000>queueCmd</font></b><font color=#990000>(</font> cmd <font color=#990000>)</font><font color=#990000>:</font>
+	<b><font color=#0000FF>if</font></b> <font color=#993399>0</font> <b><font color=#0000FF>and</font></b> ECHOFLAG<font color=#990000>:</font>
+		<b><font color=#0000FF>print</font></b> <font color=#FF0000>"queueCmd:"</font><font color=#990000>,</font> cmd
+	CommQOut<font color=#990000>.</font><b><font color=#000000>put</font></b><font color=#990000>(</font> <font color=#FF0000>"\n"</font> <font color=#990000>+</font> cmd <font color=#990000>+</font> <font color=#FF0000>"\n"</font> <font color=#990000>)</font>
+
+
+<i><font color=#9A1900>###############################################</font></i>
+<i><font color=#9A1900># one dedicated thread for each client connection.</font></i>
+<i><font color=#9A1900># only responsibility is to handle incoming commands.</font></i>
+
+<b><font color=#0000FF>class</font></b> <b><font color=#000000>CommClient</font></b><font color=#990000>(</font> CommandConnection <font color=#990000>)</font><font color=#990000>:</font>
+
+	<b><font color=#0000FF>def</font></b> <b><font color=#000000>Dispatch</font></b><font color=#990000>(</font> self<font color=#990000>,</font> cmd <font color=#990000>)</font><font color=#990000>:</font>
+<i><font color=#9A1900>#		print "dispatch", cmd</font></i>
+		<b><font color=#0000FF>if</font></b> cmd<font color=#990000>[</font><font color=#993399>0</font><font color=#990000>]</font> <font color=#990000>=</font><font color=#990000>=</font> CMD_PREFIX<font color=#990000>:</font>
+			<i><font color=#9A1900># commands to hardware get queued</font></i>
+			<b><font color=#000000>queueCmd</font></b><font color=#990000>(</font> cmd<font color=#990000>[</font><font color=#993399>1</font><font color=#990000>:</font><font color=#990000>]</font><font color=#990000>)</font>
+		<b><font color=#0000FF>else</font></b><font color=#990000>:</font>
+			<i><font color=#9A1900># other commands handled directly</font></i>
+			<b><font color=#000000>HandleCommand</font></b><font color=#990000>(</font> self<font color=#990000>,</font> cmd <font color=#990000>)</font>
+
+<i><font color=#9A1900># maintain a list of all active clients</font></i>
+
+ListOfClients <font color=#990000>=</font> <b><font color=#000000>ConnectionList</font></b><font color=#990000>(</font> COMPORT<font color=#990000>,</font> SERVERHOST<font color=#990000>,</font> CommClient <font color=#990000>)</font>
+
+<i><font color=#9A1900>########################################</font></i>
+<i><font color=#9A1900># commands</font></i>
+
+<b><font color=#0000FF>def</font></b> <b><font color=#000000>cmdon</font></b><font color=#990000>(</font> self<font color=#990000>,</font> pin <font color=#990000>)</font><font color=#990000>:</font>
+	<b><font color=#000000>queueCmd</font></b><font color=#990000>(</font> <font color=#FF0000>'A'</font> <font color=#990000>+</font> pin <font color=#990000>+</font> <font color=#FF0000>'1'</font> <font color=#990000>)</font>
+
+<b><font color=#0000FF>def</font></b> <b><font color=#000000>cmdoff</font></b><font color=#990000>(</font> self<font color=#990000>,</font> pin <font color=#990000>)</font><font color=#990000>:</font>
+	<b><font color=#000000>queueCmd</font></b><font color=#990000>(</font> <font color=#FF0000>'A'</font> <font color=#990000>+</font> pin <font color=#990000>+</font> <font color=#FF0000>'0'</font> <font color=#990000>)</font>
+
+<b><font color=#0000FF>def</font></b> <b><font color=#000000>cmdGet</font></b><font color=#990000>(</font> self<font color=#990000>,</font> pin <font color=#990000>)</font><font color=#990000>:</font>
+	<b><font color=#0000FF>pass</font></b>
+
+<b><font color=#0000FF>def</font></b> <b><font color=#000000>cmdtoggle</font></b><font color=#990000>(</font> self<font color=#990000>,</font> pin <font color=#990000>)</font><font color=#990000>:</font>
+	<b><font color=#000000>queueCmd</font></b><font color=#990000>(</font> <font color=#FF0000>'N'</font> <font color=#990000>+</font> pin <font color=#990000>)</font>
+
+<b><font color=#0000FF>def</font></b> <b><font color=#000000>cmdpulse</font></b><font color=#990000>(</font> self<font color=#990000>,</font> pin <font color=#990000>)</font><font color=#990000>:</font>
+	<b><font color=#000000>queueCmd</font></b><font color=#990000>(</font> <font color=#FF0000>'M'</font> <font color=#990000>+</font> pin <font color=#990000>)</font>	<i><font color=#9A1900># count?</font></i>
+
+<b><font color=#0000FF>def</font></b> <b><font color=#000000>cmdAddMonitor</font></b><font color=#990000>(</font> self<font color=#990000>,</font> pin <font color=#990000>)</font><font color=#990000>:</font>
+	Devices<font color=#990000>.</font><b><font color=#000000>AddMonitor</font></b><font color=#990000>(</font> self<font color=#990000>,</font> pin <font color=#990000>)</font>
+
+<b><font color=#0000FF>def</font></b> <b><font color=#000000>cmdRemMonitor</font></b><font color=#990000>(</font> self<font color=#990000>,</font> pin <font color=#990000>)</font><font color=#990000>:</font>
+	Devices<font color=#990000>.</font><b><font color=#000000>RemMonitor</font></b><font color=#990000>(</font> self<font color=#990000>,</font> pin <font color=#990000>)</font>
+
+<b><font color=#0000FF>def</font></b> <b><font color=#000000>cmdStatus</font></b><font color=#990000>(</font> self<font color=#990000>,</font> pin <font color=#990000>)</font><font color=#990000>:</font>
+	<i><font color=#9A1900># ?? this should send answer back to client??</font></i>
+	<b><font color=#0000FF>print</font></b> <font color=#FF0000>"Clients:"</font><font color=#990000>,</font> <b><font color=#000000>len</font></b><font color=#990000>(</font> ListOfClients <font color=#990000>)</font>
+	Devices<font color=#990000>.</font><b><font color=#000000>Status</font></b><font color=#990000>(</font><font color=#990000>)</font>
+
+<b><font color=#0000FF>def</font></b> <b><font color=#000000>cmdMode</font></b><font color=#990000>(</font> self<font color=#990000>,</font> args <font color=#990000>)</font><font color=#990000>:</font>
+	<b><font color=#0000FF>if</font></b> args<font color=#990000>[</font><font color=#993399>0</font><font color=#990000>]</font> <font color=#990000>=</font><font color=#990000>=</font> <font color=#FF0000>'0'</font><font color=#990000>:</font>
+		<i><font color=#9A1900># polling</font></i>
+		<b><font color=#0000FF>if</font></b> <b><font color=#0000FF>not</font></b> args<font color=#990000>[</font><font color=#993399>1</font><font color=#990000>]</font> <b><font color=#0000FF>in</font></b> <font color=#FF0000>"012"</font><font color=#990000>:</font>
+			<b><font color=#0000FF>raise</font></b> ArgError
+
+	<b><font color=#0000FF>elif</font></b> args<font color=#990000>[</font><font color=#993399>0</font><font color=#990000>]</font> <font color=#990000>=</font><font color=#990000>=</font> <font color=#FF0000>'1'</font><font color=#990000>:</font>
+		<i><font color=#9A1900># enable events</font></i>
+		<b><font color=#0000FF>if</font></b> <b><font color=#0000FF>not</font></b> args<font color=#990000>[</font><font color=#993399>1</font><font color=#990000>]</font> <b><font color=#0000FF>in</font></b> <font color=#FF0000>"01"</font><font color=#990000>:</font>
+			<b><font color=#0000FF>raise</font></b> ArgError
+
+	<b><font color=#0000FF>elif</font></b> args<font color=#990000>[</font><font color=#993399>0</font><font color=#990000>]</font> <font color=#990000>=</font><font color=#990000>=</font> <font color=#FF0000>'2'</font><font color=#990000>:</font>
+		<i><font color=#9A1900># enable serial and control refresh rate</font></i>
+		<b><font color=#0000FF>if</font></b> <b><font color=#000000>int</font></b><font color=#990000>(</font> arg<font color=#990000>[</font><font color=#993399>1</font><font color=#990000>:</font><font color=#990000>]</font><font color=#990000>)</font> <font color=#990000>&gt;</font> <font color=#993399>255</font><font color=#990000>:</font>
+			<b><font color=#0000FF>raise</font></b> ArgError
+
+	<b><font color=#0000FF>elif</font></b> args<font color=#990000>[</font><font color=#993399>0</font><font color=#990000>]</font> <font color=#990000>=</font><font color=#990000>=</font> <font color=#FF0000>'3'</font><font color=#990000>:</font>
+		<i><font color=#9A1900># enable scope outputs on H0-H2</font></i>
+		<b><font color=#0000FF>if</font></b> <b><font color=#0000FF>not</font></b> args<font color=#990000>[</font><font color=#993399>1</font><font color=#990000>]</font> <b><font color=#0000FF>in</font></b> <font color=#FF0000>"01"</font><font color=#990000>:</font>
+			<b><font color=#0000FF>raise</font></b> ArgError
+
+	<b><font color=#0000FF>else</font></b><font color=#990000>:</font>
+		<b><font color=#0000FF>raise</font></b> ArgError
+
+	<b><font color=#000000>queueCmd</font></b><font color=#990000>(</font> <font color=#FF0000>'Q'</font><font color=#990000>,</font> args <font color=#990000>)</font>
+
+<b><font color=#0000FF>def</font></b> <b><font color=#000000>cmdName</font></b><font color=#990000>(</font> self<font color=#990000>,</font> name <font color=#990000>)</font><font color=#990000>:</font>
+	self<font color=#990000>.</font>name <font color=#990000>=</font> name
+	<b><font color=#0000FF>print</font></b> <font color=#FF0000>"# New Comm Client Named:"</font><font color=#990000>,</font> self<font color=#990000>.</font>name
+
+<b><font color=#0000FF>def</font></b> <b><font color=#000000>parsePinRange</font></b><font color=#990000>(</font> arg <font color=#990000>)</font><font color=#990000>:</font>
+	<i><font color=#9A1900>#pin range is like 'A3-5'</font></i>
+
+	a<font color=#990000>,</font> b <font color=#990000>=</font> arg<font color=#990000>.</font><b><font color=#000000>split</font></b><font color=#990000>(</font> <font color=#FF0000>'-'</font><font color=#990000>,</font> <font color=#993399>1</font> <font color=#990000>)</font>
+	bank <font color=#990000>=</font> a<font color=#990000>[</font><font color=#993399>0</font><font color=#990000>]</font>
+	a <font color=#990000>=</font> a<font color=#990000>[</font> <font color=#993399>1</font><font color=#990000>:</font> <font color=#990000>]</font>
+	<b><font color=#0000FF>if</font></b> b<font color=#990000>[</font><font color=#993399>0</font><font color=#990000>]</font> <b><font color=#0000FF>in</font></b> string<font color=#990000>.</font>letters<font color=#990000>:</font>
+		b <font color=#990000>=</font> b<font color=#990000>[</font> <font color=#993399>1</font><font color=#990000>:</font> <font color=#990000>]</font>
+
+	<b><font color=#0000FF>if</font></b> <b><font color=#0000FF>not</font></b> re<font color=#990000>.</font><b><font color=#000000>match</font></b><font color=#990000>(</font> <font color=#FF0000>'^\\d+$'</font><font color=#990000>,</font> a <font color=#990000>)</font> <font color=#990000>\</font>
+	<b><font color=#0000FF>or</font></b> <b><font color=#0000FF>not</font></b> re<font color=#990000>.</font><b><font color=#000000>match</font></b><font color=#990000>(</font> <font color=#FF0000>'^\\d+$'</font><font color=#990000>,</font> b <font color=#990000>)</font><font color=#990000>:</font>
+		<b><font color=#0000FF>raise</font></b> ArgError
+
+	r <font color=#990000>=</font> <font color=#990000>[</font><font color=#990000>]</font>
+	<b><font color=#0000FF>for</font></b> i <b><font color=#0000FF>in</font></b> <b><font color=#000000>xrange</font></b><font color=#990000>(</font> <b><font color=#000000>int</font></b><font color=#990000>(</font> a <font color=#990000>)</font><font color=#990000>,</font> <b><font color=#000000>int</font></b><font color=#990000>(</font> b <font color=#990000>)</font> <font color=#990000>+</font> <font color=#993399>1</font> <font color=#990000>)</font><font color=#990000>:</font>
+		r<font color=#990000>.</font><b><font color=#000000>append</font></b><font color=#990000>(</font> bank <font color=#990000>+</font> <b><font color=#000000>i2pin</font></b><font color=#990000>(</font> i <font color=#990000>)</font><font color=#990000>)</font>
+
+	<b><font color=#0000FF>return</font></b> r
+
+<b><font color=#0000FF>def</font></b> <b><font color=#000000>ParseArgs1</font></b><font color=#990000>(</font> cmdfn<font color=#990000>,</font> self<font color=#990000>,</font> args <font color=#990000>)</font><font color=#990000>:</font>
+	<b><font color=#0000FF>def</font></b> <b><font color=#000000>ParsePin</font></b><font color=#990000>(</font> arg <font color=#990000>)</font><font color=#990000>:</font>
+		<b><font color=#0000FF>if</font></b> arg<font color=#990000>[</font><font color=#993399>1</font><font color=#990000>]</font> <font color=#990000>=</font><font color=#990000>=</font> <font color=#FF0000>'*'</font><font color=#990000>:</font>
+			<b><font color=#0000FF>if</font></b> <b><font color=#000000>len</font></b><font color=#990000>(</font> arg <font color=#990000>)</font> <font color=#990000>&gt;</font> <font color=#993399>2</font><font color=#990000>:</font>
+				<b><font color=#0000FF>raise</font></b> ArgError
+
+			<b><font color=#0000FF>return</font></b> <font color=#990000>[</font> arg<font color=#990000>[</font><font color=#993399>0</font><font color=#990000>]</font><font color=#990000>.</font><b><font color=#000000>upper</font></b><font color=#990000>(</font><font color=#990000>)</font> <font color=#990000>+</font> <font color=#FF0000>'*'</font> <font color=#990000>]</font>
+
+		<b><font color=#0000FF>if</font></b> <font color=#FF0000>'-'</font> <b><font color=#0000FF>in</font></b> arg<font color=#990000>:</font>
+			<b><font color=#0000FF>return</font></b> <b><font color=#000000>parsePinRange</font></b><font color=#990000>(</font> arg <font color=#990000>)</font>
+
+		<b><font color=#0000FF>return</font></b> <font color=#990000>[</font><font color=#990000>(</font> arg<font color=#990000>[</font><font color=#993399>0</font><font color=#990000>]</font><font color=#990000>.</font><b><font color=#000000>upper</font></b><font color=#990000>(</font><font color=#990000>)</font> <font color=#990000>+</font> <b><font color=#000000>s2pin</font></b><font color=#990000>(</font> arg<font color=#990000>[</font> <font color=#993399>1</font><font color=#990000>:</font> <font color=#990000>]</font><font color=#990000>)</font><font color=#990000>)</font><font color=#990000>]</font>
+
+	<i><font color=#9A1900># two pass so errs block entire command</font></i>
+	<i><font color=#9A1900># and to provide for 1:n expansion</font></i>
+
+	res <font color=#990000>=</font> <font color=#990000>[</font><font color=#990000>]</font>
+	<b><font color=#0000FF>for</font></b> arg <b><font color=#0000FF>in</font></b> args<font color=#990000>.</font><b><font color=#000000>split</font></b><font color=#990000>(</font><font color=#990000>)</font><font color=#990000>:</font>
+		res<font color=#990000>.</font><b><font color=#000000>extend</font></b><font color=#990000>(</font> <b><font color=#000000>ParsePin</font></b><font color=#990000>(</font> arg <font color=#990000>)</font><font color=#990000>)</font>
+
+	<b><font color=#0000FF>for</font></b> arg <b><font color=#0000FF>in</font></b> res<font color=#990000>:</font>
+		<b><font color=#000000>cmdfn</font></b><font color=#990000>(</font> self<font color=#990000>,</font> arg <font color=#990000>)</font>
+
+<b><font color=#0000FF>def</font></b> <b><font color=#000000>ParseArgs0</font></b><font color=#990000>(</font> cmdfn<font color=#990000>,</font> self<font color=#990000>,</font> args <font color=#990000>)</font><font color=#990000>:</font>
+	<b><font color=#000000>cmdfn</font></b><font color=#990000>(</font> self<font color=#990000>,</font> <font color=#990000>[</font> args <font color=#990000>]</font><font color=#990000>)</font>
+
+CmdTab <font color=#990000>=</font> <font color=#990000>{</font> 
+	<font color=#FF0000>'0'</font><font color=#990000>:</font> <font color=#990000>(</font> ParseArgs1<font color=#990000>,</font> cmdoff <font color=#990000>)</font><font color=#990000>,</font> 
+	<font color=#FF0000>'1'</font><font color=#990000>:</font> <font color=#990000>(</font> ParseArgs1<font color=#990000>,</font> cmdon <font color=#990000>)</font><font color=#990000>,</font> 
+	<font color=#FF0000>'T'</font><font color=#990000>:</font> <font color=#990000>(</font> ParseArgs1<font color=#990000>,</font> cmdtoggle <font color=#990000>)</font><font color=#990000>,</font> 
+	<font color=#FF0000>'P'</font><font color=#990000>:</font> <font color=#990000>(</font> ParseArgs1<font color=#990000>,</font> cmdpulse <font color=#990000>)</font><font color=#990000>,</font> 
+	<font color=#FF0000>'GET'</font><font color=#990000>:</font> <font color=#990000>(</font> ParseArgs1<font color=#990000>,</font> cmdGet <font color=#990000>)</font><font color=#990000>,</font>
+	<font color=#FF0000>'ADD'</font><font color=#990000>:</font> <font color=#990000>(</font> ParseArgs1<font color=#990000>,</font> cmdAddMonitor <font color=#990000>)</font><font color=#990000>,</font>
+	<font color=#FF0000>'REM'</font><font color=#990000>:</font> <font color=#990000>(</font> ParseArgs1<font color=#990000>,</font> cmdRemMonitor <font color=#990000>)</font><font color=#990000>,</font>
+	<font color=#FF0000>'STAT'</font><font color=#990000>:</font> <font color=#990000>(</font> ParseArgs0<font color=#990000>,</font> cmdStatus <font color=#990000>)</font><font color=#990000>,</font>
+	<font color=#FF0000>'MODE'</font><font color=#990000>:</font> <font color=#990000>(</font> ParseArgs0<font color=#990000>,</font> cmdMode <font color=#990000>)</font><font color=#990000>,</font>
+	<font color=#FF0000>'NAME'</font><font color=#990000>:</font> <font color=#990000>(</font> ParseArgs0<font color=#990000>,</font> cmdName <font color=#990000>)</font><font color=#990000>,</font>
+	<font color=#990000>}</font>
+
+<b><font color=#0000FF>def</font></b> <b><font color=#000000>HandleCommand</font></b><font color=#990000>(</font> self<font color=#990000>,</font> command <font color=#990000>)</font><font color=#990000>:</font>
+	<i><font color=#9A1900># print command</font></i>
+	cmd <font color=#990000>=</font> command<font color=#990000>.</font><b><font color=#000000>strip</font></b><font color=#990000>(</font><font color=#990000>)</font><font color=#990000>.</font><b><font color=#000000>upper</font></b><font color=#990000>(</font><font color=#990000>)</font>
+
+	<b><font color=#0000FF>if</font></b> <font color=#FF0000>' '</font> <b><font color=#0000FF>in</font></b> cmd<font color=#990000>:</font>
+		cmd<font color=#990000>,</font> args <font color=#990000>=</font> cmd<font color=#990000>.</font><b><font color=#000000>split</font></b><font color=#990000>(</font> <font color=#FF0000>' '</font><font color=#990000>,</font> <font color=#993399>1</font> <font color=#990000>)</font>
+	<b><font color=#0000FF>else</font></b><font color=#990000>:</font>
+		args <font color=#990000>=</font> None
+
+	<b><font color=#0000FF>if</font></b> <b><font color=#0000FF>not</font></b> cmd <b><font color=#0000FF>in</font></b> CmdTab<font color=#990000>.</font><b><font color=#000000>keys</font></b><font color=#990000>(</font><font color=#990000>)</font><font color=#990000>:</font>
+		<b><font color=#0000FF>print</font></b> <font color=#FF0000>"ERROR: Illegal command:"</font><font color=#990000>,</font> command
+		<b><font color=#0000FF>return</font></b>
+
+	argfn <font color=#990000>=</font> CmdTab<font color=#990000>[</font> cmd <font color=#990000>]</font><font color=#990000>[</font><font color=#993399>0</font><font color=#990000>]</font>
+	cmdfn <font color=#990000>=</font> CmdTab<font color=#990000>[</font> cmd <font color=#990000>]</font><font color=#990000>[</font><font color=#993399>1</font><font color=#990000>]</font>
+
+	<b><font color=#0000FF>try</font></b><font color=#990000>:</font>
+		args <font color=#990000>=</font> <b><font color=#000000>argfn</font></b><font color=#990000>(</font> cmdfn<font color=#990000>,</font> self<font color=#990000>,</font> args <font color=#990000>)</font>
+	<b><font color=#0000FF>except</font></b> ArgError<font color=#990000>:</font>
+		<b><font color=#0000FF>print</font></b> <font color=#FF0000>"arg error:"</font><font color=#990000>,</font> command
+		<b><font color=#0000FF>return</font></b>
+
+
+<i><font color=#9A1900>###############################################</font></i>
+<i><font color=#9A1900># read serial port and process incoming</font></i>
+
+<b><font color=#0000FF>def</font></b> <b><font color=#000000>PortReader</font></b><font color=#990000>(</font><font color=#990000>)</font><font color=#990000>:</font>
+	<b><font color=#0000FF>while</font></b> <font color=#993399>1</font><font color=#990000>:</font>
+		<i><font color=#9A1900># all IO input comes through this read</font></i>
+		line <font color=#990000>=</font> tty<font color=#990000>.</font>ttyi<font color=#990000>.</font><b><font color=#000000>readline</font></b><font color=#990000>(</font><font color=#990000>)</font>
+
+		<b><font color=#0000FF>if</font></b> <font color=#993399>0</font> <b><font color=#0000FF>and</font></b> ECHOFLAG<font color=#990000>:</font>
+			<b><font color=#0000FF>print</font></b> <font color=#FF0000>"recv:"</font><font color=#990000>,</font> line<font color=#990000>,</font>
+		<b><font color=#0000FF>try</font></b><font color=#990000>:</font>
+			iom<font color=#990000>.</font><b><font color=#000000>ProcessLine</font></b><font color=#990000>(</font> line <font color=#990000>)</font>
+		<b><font color=#0000FF>except</font></b> RuntimeError<font color=#990000>:</font>
+			<b><font color=#0000FF>print</font></b> <font color=#FF0000>"IO Subsystem Restarted"</font>
+			Sound<font color=#990000>.</font><b><font color=#000000>sendspeech</font></b><font color=#990000>(</font> <font color=#FF0000>"IO Subsystem Restarted"</font> <font color=#990000>)</font>
+			<b><font color=#000000>send_defaults</font></b><font color=#990000>(</font><font color=#990000>)</font>
+
+	<i><font color=#9A1900># conn.send( str( rc ) + "\n" )</font></i>
+
+<i><font color=#9A1900>###############################################</font></i>
+<i><font color=#9A1900># handle queued output for serial port </font></i>
+
+<b><font color=#0000FF>def</font></b> <b><font color=#000000>PortWriter</font></b><font color=#990000>(</font><font color=#990000>)</font><font color=#990000>:</font>
+	<b><font color=#0000FF>def</font></b> <b><font color=#000000>trimleading</font></b><font color=#990000>(</font> s <font color=#990000>)</font><font color=#990000>:</font>
+		<b><font color=#0000FF>if</font></b> s <b><font color=#0000FF>and</font></b> s<font color=#990000>[</font><font color=#993399>0</font><font color=#990000>]</font> <font color=#990000>=</font><font color=#990000>=</font> <font color=#FF0000>"\n"</font><font color=#990000>:</font>
+			<b><font color=#0000FF>return</font></b> s<font color=#990000>[</font><font color=#993399>1</font><font color=#990000>:</font><font color=#990000>]</font>
+		<b><font color=#0000FF>else</font></b><font color=#990000>:</font>
+			<b><font color=#0000FF>return</font></b> s
+
+	<b><font color=#0000FF>while</font></b> <font color=#993399>1</font><font color=#990000>:</font>
+		cmd <font color=#990000>=</font> CommQOut<font color=#990000>.</font><b><font color=#000000>get</font></b><font color=#990000>(</font><font color=#990000>)</font>
+		<b><font color=#0000FF>if</font></b> ECHOFLAG<font color=#990000>:</font>
+			<b><font color=#0000FF>print</font></b> <font color=#FF0000>"send:"</font><font color=#990000>,</font> <b><font color=#000000>trimleading</font></b><font color=#990000>(</font> cmd <font color=#990000>)</font>
+
+		<i><font color=#9A1900># all output to IO goes through here...</font></i>
+		tty<font color=#990000>.</font><b><font color=#000000>send</font></b><font color=#990000>(</font> cmd <font color=#990000>)</font>
+
+<i><font color=#9A1900>###############################################</font></i>
+<i><font color=#9A1900># send default commands</font></i>
+
+Defaults <font color=#990000>=</font> <font color=#990000>[</font> <font color=#FF0000>"Q30"</font><font color=#990000>,</font> <font color=#FF0000>"Q11"</font> <font color=#990000>]</font>
+
+<b><font color=#0000FF>def</font></b> <b><font color=#000000>send_defaults</font></b><font color=#990000>(</font><font color=#990000>)</font><font color=#990000>:</font>
+	<i><font color=#9A1900># turn off oscilliscope mode; turn on events</font></i>
+	<b><font color=#0000FF>for</font></b> cmd <b><font color=#0000FF>in</font></b> Defaults<font color=#990000>:</font>
+		<b><font color=#000000>queueCmd</font></b><font color=#990000>(</font> cmd <font color=#990000>)</font>
+
+<i><font color=#9A1900>###############################################</font></i>
+<i><font color=#9A1900># handle signals</font></i>
+
+Running <font color=#990000>=</font> <font color=#993399>1</font>
+
+<b><font color=#0000FF>def</font></b> <b><font color=#000000>HandleSig</font></b><font color=#990000>(</font> sig<font color=#990000>,</font> frame <font color=#990000>)</font><font color=#990000>:</font>
+	<b><font color=#0000FF>global</font></b> Running
+	Running <font color=#990000>=</font> <font color=#993399>0</font>
+	<b><font color=#0000FF>if</font></b> sig <font color=#990000>=</font><font color=#990000>=</font> signal<font color=#990000>.</font>SIGHUP<font color=#990000>:</font>
+		<b><font color=#0000FF>print</font></b> <font color=#FF0000>"Hup"</font>
+	<b><font color=#0000FF>elif</font></b> sig <font color=#990000>=</font><font color=#990000>=</font> signal<font color=#990000>.</font>SIGINT<font color=#990000>:</font>
+		<b><font color=#0000FF>print</font></b> <font color=#FF0000>"Interrupt"</font>
+	<b><font color=#0000FF>else</font></b><font color=#990000>:</font>
+		<b><font color=#0000FF>print</font></b> <font color=#FF0000>"Unk Sig"</font>
+
+<i><font color=#9A1900>###############################################</font></i>
+<i><font color=#9A1900># launch the threads</font></i>
+<i><font color=#9A1900># main thread idles, waiting to handle external signals</font></i>
+
+<b><font color=#0000FF>def</font></b> <b><font color=#000000>main</font></b><font color=#990000>(</font><font color=#990000>)</font><font color=#990000>:</font>
+	<b><font color=#0000FF>global</font></b> ECHOFLAG
+
+	<b><font color=#0000FF>print</font></b> <font color=#FF0000>"################################"</font>
+	<b><font color=#0000FF>print</font></b> <font color=#FF0000>"# IOServer is starting"</font> 
+	<b><font color=#0000FF>print</font></b> <font color=#FF0000>"################################"</font>
+
+	<b><font color=#0000FF>if</font></b> <b><font color=#000000>len</font></b><font color=#990000>(</font> sys<font color=#990000>.</font>argv <font color=#990000>)</font> <font color=#990000>&gt;</font> <font color=#993399>1</font> <b><font color=#0000FF>and</font></b> sys<font color=#990000>.</font>argv<font color=#990000>[</font><font color=#993399>1</font><font color=#990000>]</font> <font color=#990000>=</font><font color=#990000>=</font> <font color=#FF0000>'-e'</font><font color=#990000>:</font>
+		ECHOFLAG <font color=#990000>=</font> <b><font color=#0000FF>not</font></b> ECHOFLAG
+		<b><font color=#0000FF>print</font></b> <font color=#FF0000>"will echo serial port traffic"</font>
+
+	tty<font color=#990000>.</font><b><font color=#000000>Init</font></b><font color=#990000>(</font><font color=#990000>)</font>
+	iom<font color=#990000>.</font><b><font color=#000000>Init</font></b><font color=#990000>(</font><font color=#990000>)</font>
+	<b><font color=#000000>send_defaults</font></b><font color=#990000>(</font><font color=#990000>)</font>
+
+	<b><font color=#0000FF>if</font></b> <b><font color=#0000FF>not</font></b> daemonize<font color=#990000>.</font>DEBUG<font color=#990000>:</font>
+		signal<font color=#990000>.</font><b><font color=#000000>signal</font></b><font color=#990000>(</font> signal<font color=#990000>.</font>SIGHUP<font color=#990000>,</font> HandleSig <font color=#990000>)</font>
+		signal<font color=#990000>.</font><b><font color=#000000>signal</font></b><font color=#990000>(</font> signal<font color=#990000>.</font>SIGINT<font color=#990000>,</font> HandleSig <font color=#990000>)</font>
+
+	<i><font color=#9A1900># these threads must start in this order:</font></i>
+
+	thread<font color=#990000>.</font><b><font color=#000000>start_new_thread</font></b><font color=#990000>(</font> PortReader<font color=#990000>,</font> <font color=#990000>(</font><font color=#990000>)</font><font color=#990000>)</font>
+	thread<font color=#990000>.</font><b><font color=#000000>start_new_thread</font></b><font color=#990000>(</font> PortWriter<font color=#990000>,</font> <font color=#990000>(</font><font color=#990000>)</font><font color=#990000>)</font>
+
+	Serial<font color=#990000>.</font><b><font color=#000000>Init</font></b><font color=#990000>(</font> CommQOut  <font color=#990000>)</font>
+
+	<b><font color=#0000FF>print</font></b> <font color=#FF0000>"IO Server is starting"</font>
+	Sound<font color=#990000>.</font><b><font color=#000000>sendspeech</font></b><font color=#990000>(</font> <font color=#FF0000>"IO server is starting"</font> <font color=#990000>)</font>
+
+	<b><font color=#0000FF>try</font></b><font color=#990000>:</font>
+		<b><font color=#0000FF>while</font></b> Running<font color=#990000>:</font>
+			signal<font color=#990000>.</font><b><font color=#000000>pause</font></b><font color=#990000>(</font><font color=#990000>)</font>
+	<b><font color=#0000FF>finally</font></b><font color=#990000>:</font>
+		<b><font color=#0000FF>print</font></b> <font color=#FF0000>"IO Server is exiting"</font>
+		Sound<font color=#990000>.</font><b><font color=#000000>sendspeech</font></b><font color=#990000>(</font> <font color=#FF0000>"IO Server is exiting"</font> <font color=#990000>)</font>
+
+<b><font color=#000000>main</font></b><font color=#990000>(</font><font color=#990000>)</font>
+</tt>
+</pre>

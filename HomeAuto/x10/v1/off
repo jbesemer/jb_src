@@ -1,0 +1,44 @@
+echo $* | awk '
+BEGIN {
+	cmd = "'"$0"'"
+	gsub( ".*/", "", cmd )
+	cmd = substr( cmd, 1, 2 )
+}
+
+{
+	commands = ""
+
+	for( i=1; i<=NF; i++ ){
+		house = substr( $i, 1, 1 )
+		number = substr( $i, 2 )
+		address = house expand( number )
+		if( house ~ /[rR]/ ){
+			# repeat code
+			send_x10( address )
+
+		} if( house ~ /[0-9]/ ){
+			# repeat code sans the "r"
+			send_x10( " R" expand( $i ))
+
+		} else {
+			# normal command/address
+			send_x10( address )
+			send_x10( house cmd );
+		}
+	}
+#	print "sh x10", commands
+}
+
+function expand( num ){
+	return sprintf( "%02d", num )
+}
+
+function send_x10( command ){
+	print "x10", command
+	#print command >"/dev/ttyS1"
+	#getline response <"/dev/ttyS1"
+	#print "Received:", response
+}
+
+' >.last_cmd
+sh .last_cmd

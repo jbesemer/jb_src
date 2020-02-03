@@ -1,0 +1,25 @@
+FILES="DecodeArgs.c
+ErrTab.py
+Events.lib
+LogFile.py
+Math48.c
+Test1.c
+UserFile.py
+adc_cal
+bitswiz.lib
+init_io
+init_tty
+iom
+poll
+scrap.c
+send
+sio.c
+siosend.lib
+timer.c
+toggle
+util.py
+walk
+watch
+watch1"
+
+ci -l $FILES

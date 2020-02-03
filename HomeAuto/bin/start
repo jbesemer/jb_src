@@ -1,0 +1,5 @@
+date
+$* 2>&1 &
+
+echo $! > ${1}_pid
+echo PID=$!

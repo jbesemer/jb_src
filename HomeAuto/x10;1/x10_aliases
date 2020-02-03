@@ -1,0 +1,48 @@
+## x10 aliases
+
+[ master bedroom ]
+
+	mbr1		= m2
+	mbr2		= m3
+	mbr_fan		= m1
+
+[ living room ]
+
+	lr_overhead 	= b5
+	lr_chase 	= b4
+	lr_nw 		= b3
+	lr_se 		= b2
+	# lr_overhead	= b1
+
+	# lr groups 
+
+	lr 		= lr_chase lr_nw lr_se	
+
+	lr_all 		= lr	# all includes overhead light 
+
+[front porch]
+
+	porch 		= b7
+	f_porch		= b7
+	front_porch	= b7
+
+[ first floor hall ]
+
+	hall		= b8	# 1st floor hall light
+	bath		= b9	# 1st floor bathroom
+
+[ family room ]
+
+	fr_radiobase	= f1
+	fr_table	= f2
+	lr_standing	= f3
+
+	# groups:
+
+	fr_all 		= f2 f3
+	fr_normal 	= f2
+
+[ jb office ]
+
+	jb_desk		= c7
+	jb_fan		= c8

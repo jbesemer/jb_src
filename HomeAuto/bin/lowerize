@@ -1,0 +1,24 @@
+#!/usr/bin/python2.2
+
+import os,os.path
+import string
+import sys
+import stat
+
+def isDir( path ):
+	st = os.stat( path )
+	return stat.S_ISDIR( st[ 0 ])
+
+for file in sys.argv[1:]:
+	if isDir( file ):
+		continue
+
+	head,tail = os.path.split( file )	
+	lowered = os.path.join( head, string.lower( tail ))
+	if file != lowered:
+		print file, "->",
+		if os.access( lowered, os.F_OK ):
+			print "COLLIDES WITH", lowered
+		else:
+			os.rename( file, lowered )
+			print lowered

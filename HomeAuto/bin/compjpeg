@@ -1,0 +1,1 @@
+djpeg $i | pnmscale .3 | cjpeg -v -quality 20 >thumb-$i

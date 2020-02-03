@@ -1,0 +1,5 @@
+for i in $* 
+do
+	echo $i: `cat ${i}_pid`
+	kill `cat ${i}_pid`
+done

@@ -1,0 +1,10 @@
+#!/usr/bin/perl
+
+$| = 1;
+print "start...\n";
+
+for( $i=10; $i>=0; $i-- ){
+	sleep 1;
+	@lt = localtime;
+	printf "%02d:%02d:%02d\n", $lt[ 2 ], $lt[ 1 ], $lt[ 0 ];
+}

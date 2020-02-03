@@ -1,0 +1,35 @@
+#!c:/python24/python.exe
+
+import os, sys
+
+
+# the whole point here is to conceal the passwords:
+
+os.environ[ "USERNAME" ] = "root"
+os.environ[ "PASSWORD" ] ="Reject0"
+
+os.execve( "c:/python24/python.exe", [ "-", "GenieCgi.py" ], os.environ )
+
+print """Content-type: text/html; charset=iso-8859-1
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<html>
+<head>
+<title>Authorization Failure Screen</title>
+</head>
+<body bgcolor="#fffff0">
+<H1>Authorization Failure</H1>
+Unable to connect to database, due to insufficient authorization.
+
+<pre>"""
+
+print "pwd=", os.getcwd()
+
+try:
+	for key, val in sys.argv.items():
+		print "argv[", key, "] =", val
+except:
+	print "bad argv, len=", len( sys.argv )	# wtf??
+
+for key, val in os.environ.items():
+	print key, "=", val

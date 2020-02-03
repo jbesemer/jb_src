@@ -1,0 +1,25 @@
+#!/usr/bin/perl
+
+sub timestamp
+{
+	my($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime;
+
+	return sprintf( "%02d:%02d:%02d", $hour, $min, $sec );
+}
+
+# echo feedback from x10 channel
+
+	open TTY, "+>/dev/ttyS1";
+
+	select TTY; $| = 1;
+	select STDOUT;
+
+	print TTY "B01\n";
+	sleep 1;
+	print TTY "BON\n";
+	sleep 1;
+
+	while(<TTY>){
+		my( $ts ) = &timestamp;
+		print "$ts $_";
+	}

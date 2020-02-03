@@ -1,0 +1,13 @@
+#!/bin/sh
+
+X10="x10/x10client.py x10/x10server.py"
+IO="io/ioclient.py io/ioserver.py io/iocycle.py"
+APPS="apps/sund.py"
+ALL="$X10 $IO $APPS"
+XREF="python /home/jb/bin/tc.py"
+
+$XREF	$X10 	| pr -h "XREF $X10"
+$XREF	$IO 	| pr -h "XREF $IO"
+$XREF	$APPS 	| pr -h "XREF $APPS"
+$XREF 	$ALL 	| pr -h "XREF $ALL"
+

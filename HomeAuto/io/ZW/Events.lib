@@ -1,0 +1,367 @@
+///////////////////////////////////
+// pending event table
+//
+// Events are commands that get sent the command processor
+// when a countdown timer expires.
+//
+// Events may be one-shot or they may repeat until explicitly removed.
+//
+// Externally, events are referred to by their char ID.  Once
+// assigned, IDs persist until the event is removed.
+//
+// Multiple events may be defined with the same ID.  In that 
+// case external Change, Remove and Get commands apply to ALL 
+// events with that ID.  It's a primitive form of event group.
+//
+// Internally, events are referred to by table index.  
+// Event indicies are NOT guaranteed to stay the same.
+// When an event is removed, it results in the renumbering
+// of all events with a higher index (if any).
+//
+// New events are assigned the highest unused index.
+//
+// The above rules ALLOW defining a fixed number of 'constant' rules
+// whose indicies never change but nothing is done to ENFORCE it.
+
+#use SioSend.lib
+
+
+
+/*** BeginHeader Events, EventCount */
+
+#define MAXEVTARGS	16	// max arguments to an event command
+#define MAXEVENTS	50	// max number of events
+
+typedef struct {
+	char		id;
+	word		ticks;
+	word		repeat;
+	byte		command;
+	byte		args[ MAXEVTARGS ];
+	byte		len;
+} Event;
+
+extern Event Events[ MAXEVENTS ];
+
+extern int EventCount;
+
+/*** EndHeader */
+
+Event Events[ MAXEVENTS ];
+
+int EventCount;
+
+
+
+/*** BeginHeader AddEvent, AddEventEx */
+
+	extern XMEM int AddEventEx( 
+		char	id, 
+		word	ticks, 
+		word	repeat, 
+		byte	command, 
+		byte*	args,
+		byte	len );
+
+	extern XMEM int AddEvent( 
+		char	id, 
+		word	ticks, 
+		word	repeat, 
+		byte	command, 
+		byte*	args,
+		byte	len );
+
+/*** EndHeader */
+
+XMEM int
+AddEventEx( 
+	char	id, 
+	word	ticks, 
+	word	repeat, 
+	byte	command, 
+	byte*	args,
+	byte	len )
+{
+	register int index;
+
+	segchain _GLOBAL_INIT {
+		EventCount = 0;
+	}
+
+	DI();
+
+	if( EventCount < MAXEVENTS ){
+
+		Events[ EventCount ].id = id;
+		Events[ EventCount ].ticks = ticks;
+		Events[ EventCount ].repeat = repeat;
+		Events[ EventCount ].command = command;
+		Events[ EventCount ].len = len;
+
+		if( len > MAXEVTARGS )
+			len = MAXEVTARGS;
+
+		memmove( Events[ EventCount ].args, args, len );
+
+		if( len < MAXEVTARGS )
+			Events[ EventCount ].args[ len ] = 0;
+
+		index = EventCount++;
+	} else
+		index = -1;	// no room
+
+	EI();
+
+	return index;
+}
+
+
+XMEM int
+AddEvent( 
+	char	id, 
+	word	ticks, 
+	word	repeat, 
+	byte	command, 
+	byte*	args,
+	byte	len )
+{
+	register int index;
+
+	index = AddEventEx( id, ticks, repeat, command, args, len );
+	
+	if( index < 0 )
+		sendError( ERR_CANT_EVENT, 0 );
+
+//	ListEvent( index );
+
+	return index;
+}
+
+// remove an event from the queue
+
+/*** BeginHeader RemoveEvent */
+
+	extern XMEM void RemoveEvent( int index );
+
+/*** EndHeader */
+
+
+XMEM void 
+RemoveEvent( int index )
+{
+	register int remainder;
+
+	if( index < 0 )
+		return;
+
+	DI();
+
+	remainder = EventCount - 1 - index;
+
+	if( remainder > 0 )
+		memmove( 
+			(char*)&Events[ index ], 
+			(char*)&Events[ index + 1 ], 
+			remainder );
+
+	EventCount--;
+
+	EI();
+}
+
+
+
+/*** BeginHeader TriggerEvent, TriggerAllEvents */
+
+	extern int TriggerEvent( int index );
+	extern void TriggerAllEvents();
+
+/*** EndHeader */
+
+// execute the event's command. 
+// remove it if it's a one-shot or else reset it's timer
+//
+// returns 1 if event is removed
+//
+// DI/EI omitted as this is only called from highest priority task.
+
+int
+TriggerEvent( int index )
+{
+	register Event* ev;
+	ev = &Events[ index ];
+
+	HandleCmd( 
+		ev->command, 
+		ev->args, 
+		ev->len );
+
+	if( ev->repeat != 0 ){
+		ev->ticks = ev->repeat;
+		return 0;
+
+	} else {
+		RemoveEvent( index );
+		return 1;
+	}
+}
+
+void TriggerAllEvents()
+{
+	register int i;
+
+	for( i = 0; i < EventCount; i++ )
+		if( Events[ i ].ticks-- == 0 )
+			if( TriggerEvent( i ))
+				i--;  // event was removed thus we need to reuse this index
+}
+
+
+
+/*** BeginHeader FindEvent */
+
+	extern XMEM int FindEvent( char id, int start );
+
+/*** EndHeader */
+
+// return the index of the next event with a given id (-1 if not found)
+
+XMEM int 
+FindEvent( char id, int start )
+{
+	register int i;
+
+	if( start < 0 )
+		start = 0;
+
+	for( i = start; i < EventCount; i++ )
+		if( Events[ i ].id == id )
+			return i;
+
+	return -1;
+}
+
+
+
+/*** BeginHeader ChangeEvent */
+
+	extern XMEM void ChangeEvent(
+		char	id, 
+		word	ticks, 
+		word	repeat, 
+		byte	command, 
+		byte*	args,
+		byte	len );
+
+/*** EndHeader */
+
+// change all events with a given id
+
+
+XMEM void
+ChangeEvent(
+	char	id, 
+	word	ticks, 
+	word	repeat, 
+	byte	command, 
+	byte*	args,
+	byte	len )
+{
+	register int i;
+	i = 0;
+	
+	DI();
+
+	while(( i = FindEvent( id, i )) >= 0 ){
+		Events[ i ].id = id;
+		Events[ i ].ticks = ticks;
+		Events[ i ].repeat = repeat;
+		Events[ i ].command = command;
+		Events[ i ].len = len;
+		memmove( Events[ i ].args, args, MAXEVTARGS );
+		i++;
+	}
+
+	EI();
+}
+
+
+
+/*** BeginHeader ListEvent */
+
+	extern XMEM void ListEvent( int index );
+
+/*** EndHeader */
+
+// send event definitions to host
+// [should only be called from background task, (sprintf is not reentrant)]
+//
+// Note that the 'ticks' value returned is the current
+// down-count, NOT the originally specified value.
+//
+// This SHOULD have locks but DI() could cause deadlock
+// with serial I/O.  Thus we intentionally allow errors
+// if events are removed during the execution of the call.
+// Should not be a serious problem provided host only asks
+// about permanant events, not transient ones.
+
+XMEM void
+ListEvent( int index )
+{
+	char buf[ 100 ];
+
+	if( index >= EventCount ){
+		sendError( ERR_NONX_EVENT, 0 );
+		return;
+	}
+
+	sprintf( 
+		buf, 
+		"&%c, %u, %u, %c, '%-16.16s'\n",
+		Events[ index ].id,
+		Events[ index ].ticks,
+		Events[ index ].repeat,
+		Events[ index ].command + '@',
+		Events[ index ].args );
+	send( buf );
+}
+
+
+
+/*** BeginHeader ListAllEvents */
+
+	extern XMEM void ListAllEvents();
+
+/*** EndHeader */
+
+XMEM void 
+ListAllEvents()
+{
+	int i;
+
+	for( i=0; i<EventCount; i++ )
+		ListEvent( i );
+}
+
+
+
+/*** BeginHeader GetEvent */
+
+	extern XMEM int GetEvent( char id );
+
+/*** EndHeader */
+
+XMEM int
+GetEvent( char id )
+{
+	int i, count;
+	count = i = 0;
+
+	while(( i = FindEvent( id, i )) >= 0 ){
+		ListEvent( i );
+		count++;
+ 		i++;
+	}
+
+	return count;
+}

@@ -1,0 +1,7 @@
+while :
+do
+	send debug p a
+	send get a0
+	send get a1
+	sleep 3
+done

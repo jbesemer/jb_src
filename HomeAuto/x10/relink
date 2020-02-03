@@ -1,0 +1,7 @@
+ls -li x10.cgi
+
+cp x10.cgi /home/httpd/cgi-bin/x10.cgi
+rm x10.cgi
+ln /home/httpd/cgi-bin/x10.cgi .
+
+ls -li x10.cgi /home/httpd/cgi-bin/x10.cgi 

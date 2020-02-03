@@ -1,0 +1,517 @@
+#!/usr/bin/perl
+
+# the earlier, simpler 24 hour fix worked but relies on actually changing day field
+
+# - - - - - - - - - - - - - - - - - - - - - - - - - 
+# Times are converted to the number of seconds since midnight
+#
+
+$min_per_hr = 60;
+$sec_per_min = 60;
+
+sub hhmmss
+{
+	my( $h, $m, $s ) = @_;
+
+	$h = ( 0 + $h ) % 24;
+#	$h = ( 0 + $h );
+	$m = 0 + $m;
+	$s = 0 + $s;
+
+	return (( $h * $min_per_hr ) + $m ) * $sec_per_min + $s ;
+}
+
+sub hhmmss24
+{
+	my( $h, $m, $s ) = @_;
+
+#	$h = ( 0 + $h ) % 24;
+	$h = ( 0 + $h );
+	$m = 0 + $m;
+	$s = 0 + $s;
+
+	return (( $h * $min_per_hr ) + $m ) * $sec_per_min + $s ;
+}
+
+sub hours
+{
+	my( $t ) = @_;
+
+	return int( $t / $min_per_hr / $sec_per_min );
+}
+
+sub minutes
+{
+	my( $t ) = @_;
+
+	return int(( $t / $sec_per_min ) % $min_per_hr );
+}
+
+sub seconds
+{
+	my( $t ) = @_;
+
+	return int( $t % $sec_per_min );
+}
+
+# convert a time into an HH:MM:SS string
+
+sub timeString
+{
+	my( $t ) = @_;
+
+	return sprintf( "%02d:%02d:%02d", hours( $t ), minutes( $t ), seconds( $t ));
+}
+
+# localtime offsets
+
+$lt_weekDay = 6; 		# constant index
+$lt_hrs = 2;
+$lt_min = 1;
+$lt_sec = 0;
+$lt_day = 3;
+$lt_mon = 4;
+$lt_year = 5;
+$lt_wday = 6;
+
+# get localtime and encode it as above
+#
+#	times are all seconds since midnight on the day actd starts
+#	at the end of each day, we recalibrate
+
+$currentTimeBias = 0;	# we can artifically adjust time for debugging
+
+$currentWeekday = 0;	# to detect wrapping past midnight
+
+sub currentTime
+{
+	my( @lt );
+	@lt = localtime( time() - $currentTimeBias );
+#	printf "%02d:%02d:%02d localtime\n", $lt[ 2 ], $lt[ 1 ], $lt[ 0 ];
+
+#	$lt[ $lt_hrs ] += 24 if( $lt[ $lt_weekDay ] != $currentWeekday );
+
+	return &hhmmss( $lt[ $lt_hrs ], $lt[ $lt_min ], $lt[ $lt_sec ]);
+}
+
+sub calibrateTime
+{
+	( $currentTimeBias ) = @_;
+	my( @lt );
+	@lt = localtime( time() - $currentTimeBias );
+	$currentWeekday = $lt[ $lt_weekDay ];
+}
+
+sub reCalibrateTime
+{
+	&calibrateTime( $currentTimeBias );
+}
+
+&calibrateTime( 0 );	# call it right away!
+
+sub currentDate
+{
+	my( @lt );
+	@lt = localtime( time() - $currentTimeBias );
+	return sprintf( 
+		"%02d/%02d/%d", 
+		$lt[ $lt_mon ] + 1,
+		 $lt[ $lt_day ],
+		 $lt[ $lt_year ] + 1900 );
+}
+
+# aliases for times
+
+%timeNames = ( "noon", "12:00", "midnight", "00:00" );
+
+sub defineTime
+{
+	my( $n, $t ) = @_;
+
+	$n =~ s/[ \t]*//g;
+	$timeNames{ $n } = $t;
+#	print "Time alias $n == $timeNames{ $n }\n";
+}
+
+# - - - - - - - - - - - - - - - - - - - - - - - - - 
+# convert a time string to hms encoding
+# substitute synonym if one exists
+
+sub timeConv
+{
+	my( $t ) = @_;
+	my( $h, $m, $s, $pm, $i );
+
+# printf "timeConv( %s ) -> ", $t;
+
+	$t =~ s/[ \t]*//g;
+
+	$t =  $timeNames{ $t }	if( exists( $timeNames{ $t }));
+
+	$t =~ s/[Aa][Mm]//;
+	if( $t =~ /[Pp][Mm]/){
+		$pm = 12;
+		$t =~ s/[Pp][Mm]//;
+		# !!hmmm... I think 12am and 12pm are backwards
+	}
+
+	$i = index( $t, ":" );
+	if( $i >= 0 ){
+		$h = substr( $t, 0, $i );
+		$m = substr( $t, $i + 1 );
+
+		$i = index( $m, ":" );
+		if( $i >= 0 ){
+			$s = substr( $m, $i + 1 );
+			$m = substr( $m, 0, $i );
+		} else {
+			$s = 0;
+		}	
+		
+	} else {
+		$h = $t;	
+		$m = 0;
+		$s = 0;
+	}
+	$h += $pm;
+
+# printf "%d+%d+%d\n", $h, $m, $s;
+
+	return &hhmmss( $h, $m, $s );
+}
+
+# print something with a timestamp prefix
+
+sub prts
+{
+	print &timeString( &currentTime ), " ";
+	print @_;
+}
+
+sub prtsr
+{
+	&prts( "# " );
+	print @_;
+}
+
+# - - - - - - - - - - - - - - - - - - - - - - - - - 
+# define 1 new event 
+
+sub defineEvent
+{
+#	print;
+	chomp;
+	s/#.*//;
+	s/\/\/.*//;
+	s/[ \t]+/ /g;
+
+	my( $i, $t, $act, $t2 );
+
+	$i = index( $_, "=" );
+	if( $i >= 0 ){
+		&defineTime( substr( $_, 0, $i - 1), substr( $_, $i + 1 ));
+		return;
+	}
+
+	$i = index( $_, " " );
+
+	if( $i >= 0 ){
+		$t2 = substr( $_, 0, $i );
+		$t = &timeConv( $t2 );
+		$act = substr( $_, $i + 1 );
+		if( exists $action{ $t } ){
+			$action{ $t } = $action{ $t } . "; " . $act;
+		} else {
+			$action{ $t } = $act;
+		}
+# print &timeString( $t ), "\t$t2 / $act [ $i ]\n";
+	}
+}
+
+# - - - - - - - - - - - - - - - - - - - - - - - - - 
+# read up the event list and sort it
+
+sub readEventSchedule
+{
+	my( $event_file ) = @_;
+
+
+	# read the event schedule
+
+	open( EV, $event_file ) || die "cannot open $event_file: $!\n";
+
+	prtsr( "reading events from $event_file\n" );
+
+	while( <EV> ){
+		defineEvent;
+	}
+
+	close( EV );
+}
+
+# order things linearly in time
+
+sub sortEventSchedule
+{
+	@schedule = sort { $a <=> $b } keys %action;
+}
+
+sub dumpSchedule
+{
+	my( $t );
+
+	foreach $t ( keys ( %timeNames )) {
+		print "$t\t= ",
+			&timeString( &timeConv( $t )),
+			" ( ",
+			$timeNames{ $t },
+			" )\n";
+	}
+	foreach $t ( @schedule ) {
+		print &timeString( $t ), "\t", @action{ $t }, "\n";
+	}
+
+	$t = $#schedule + 1;
+	prtsr( "read $t distinct events\n" );
+}
+
+# create a schedule of 10 echo statements, 10 seconds apart, 
+# straddled across midnight
+
+sub unitTestSchedule
+{
+	for( $i=0; $i < 3; $i++ ){
+		$_ = &timeString( hhmmss( 23, 59, 60 - 5 - $i*10 )) . " echo event '-$i'\n";
+		print;
+		&defineEvent;
+		$_ = &timeString( hhmmss( 00, 00, 5 + $i*10 )) . " echo event '+$i'\n";
+		print;
+		&defineEvent;
+	}
+
+	&calibrateTime( &currentTime + 50 );
+}
+
+# - - - - - - - - - - - - - - - - - - - - - - - - - 
+# sleep for an indicated amount of seconds
+
+$loRes = 2.0;
+$hiRes = 0.1;
+
+sub waitUntil
+{
+	my( $t ) = @_;			# target wall clock time
+	my( $t0 ) = &currentTime;	# current time 
+
+	prtsr( "waiting ", &timeString( $t - $t0 ), 
+		" until ",  &timeString( $t ), "\n" );
+
+	# approach with a coarse wait ( 1 sec resolution ) 
+
+	my( $t2 ) = $t - $t0 - $loRes;
+
+	sleep( $t2 ) if( $t2 > 0 );
+
+	# zoom in with a finer wait 
+
+	while( $t > &currentTime ){
+#		&prts( ". ", &timeString( $t ), "\n" );
+#		print ".";
+		select( undef, undef, undef, $hiRes );
+	}
+}
+
+sub waitUntilMidnight
+{
+
+	my( $t ) = hhmmss24( 24, 0, 0 );	# target time
+	my( $t0 ) = &currentTime;		# current time 
+
+	prtsr( "waiting ", &timeString( $t - $t0 ), " until Midnight\n" );
+
+	# approach with a coarse wait ( 1 sec resolution ) 
+
+	my( $t2 ) = $t - $t0 - $loRes;
+
+	sleep( $t2 ) if( $t2 > 0 );
+
+	# zoom in with a finer wait 
+
+	while( &currentTime != 0 ){
+#		&prts( ". ", &timeString( $t ), "\n" );
+#		print ".";
+		select( undef, undef, undef, $hiRes );
+	}
+
+	&reCalibrateTime();
+
+	my( $curd ) = &currentDate;
+	prtsr( "New Day $curd\n" );
+}
+
+sub unitTestWaitUntil
+{
+	# wait 5 seconds
+
+	waitUntil( &currentTime + 5 );
+	print "\n", &timeString( &currentTime ), "\n";
+
+	# wait 2 hours
+
+	waitUntil( &currentTime + 3600*2 );
+	print "\n", &timeString( &currentTime ), "\n";
+
+	exit;
+}
+
+# - - - - - - - - - - - - - - - - - - - - - - - - - 
+# perform the indicated action
+
+sub performAction
+{
+	my( $t, $action ) = @_;
+	my( $estat );
+
+	prtsr( "performing: $action\n" );
+
+	$action = $action . "</dev/tty" if( index( $action, "<" ) >= 0 );
+	$estat = system( $action );
+	prtsr( "Action's exit status was: $estat\n" ) if( $estat != 0 );
+}
+
+############################################
+# main program starts here
+############################################
+
+$doFork = 0;
+$dumpFlag = 0;
+$unitTest = 0;
+
+	$cur = &currentTime;
+	$curd = &currentDate;
+	prtsr( "ActD starting on $curd\n" );
+
+#	system 'echo', 'your args are', @ARGV; 
+
+	############################
+	# process command args
+	############################
+
+	foreach $arg (@ARGV){
+		if( $arg =~ /^-f/ ){
+			$doFork = 1;
+			next;
+		} elsif( $arg =~ /^-u/ ){
+			$unitTest = 1;
+			next;
+		} elsif( $arg =~ /^-d/ ){
+			$dumpFlag = 1;
+			next;
+		} 
+
+		&readEventSchedule( $arg ); # read schedule
+	}
+
+	if( $unitTest ){
+		&unitTestSchedule;
+		exit;
+	}
+
+	&sortEventSchedule;
+
+	if( $dumpFlag ){
+		&dumpSchedule;
+		exit;
+	}
+
+	############################
+	# open output logfile
+	############################
+
+#	open( LOG, "actd_log" ) || die "cannot open log file: actd_log: $!\n";
+#	we log stdout instead
+
+	############################
+	# for the remainder of our existance:
+	#
+	# switch to non-bufferd mode 
+	# fork a child process
+	# disconnect from TTY
+	############################
+
+	select( STDOUT ); $| = 1; select( STDOUT );
+
+	if( $doFork ){
+		if( fork() == 0 ){
+			# child
+			if(( $pid = fork()) == 0 ){
+				# grandchild
+				close( STDERR );
+				close( STDIN );
+				setpgrp 0,0;
+					# proceed following the outermost if
+			} else {
+				# child, continued; save grandchild's PID
+				print STDERR "pid = $pid\n";
+				open( PID, ">actd_pid" ) || die "cannot open 'actd_pid': $!\n";
+				print PID "$pid\n";
+				close( PID );
+				exit 0;
+			}
+		} else {
+			# original / parent
+			wait;		# cleanup intermediate child proc
+			exit;
+		}
+	}
+
+	############################
+	# get the current time and skip over any events that should already
+	# have happened today.
+	############################
+
+	prtsr( "Skipping events at:" );
+	$cur = &currentTime;
+
+	for( $i=0; $i <= $#schedule; $i++ ){
+		$t = $schedule[ $i ];
+		if( $t >= $cur ){
+			last;
+		} else {
+			print " ", timeString( $t );
+		}
+	}
+	print( "\n" );
+
+#	&unitTestWaitUntil;
+
+	# some initial activity to test the link before starting the schedule
+
+	&performAction( 0, "x on c1" );
+	&performAction( 0, "x off c1" );
+#	&performAction( 0, "x on p1" );
+#	&performAction( 0, "x on p2" );
+#	&performAction( 0, "x off p1" );
+#	&performAction( 0, "x off p2" );
+
+	############################
+	# Wait until next event then execute it.
+	# If no more events, then wait until midnight and start over.
+	# (events at midnight are handled first thing the next day)
+	############################
+
+	for(;;){
+		for(; $i <= $#schedule; $i++ ){
+			$t = $schedule[ $i ];
+			&waitUntil( $t );
+			&performAction( $t, $action{ $t });
+		}
+		$i = 0;
+
+		&waitUntilMidnight;
+	}
+
+	############################
+	# loop never exits or reaches this point
+	############################
+

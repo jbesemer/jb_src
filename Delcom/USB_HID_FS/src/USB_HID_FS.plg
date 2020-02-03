@@ -1,0 +1,27 @@
+<html>
+<body>
+<pre>
+<h1>Build Log</h1>
+<h3>
+--------------------Configuration: USB_HID_FS - Win32 Release--------------------
+</h3>
+<h3>Command Lines</h3>
+Creating temporary file "C:\WINDOWS\TEMP\RSP5094.TMP" with contents
+[
+/nologo /MD /W3 /GX /O2 /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /D "_AFXDLL" /D "_MBCS" /Fp"Release/USB_HID_FS.pch" /Yu"stdafx.h" /Fo"Release/" /Fd"Release/" /FD /c 
+"C:\Projects\Delcom\Hid\HIDFootSw\Usb_hid_fs\USB_HID_FSDlg.cpp"
+]
+Creating command line "cl.exe @C:\WINDOWS\TEMP\RSP5094.TMP" 
+Creating command line "link.exe hid.lib setupapi.lib /nologo /subsystem:windows /incremental:no /pdb:"Release/USB_HID_FS.pdb" /machine:I386 /out:"Release/USB_HID_FS.exe"  .\Release\StdAfx.obj .\Release\USB_HID_FS.obj .\Release\USB_HID_FSDlg.obj .\Release\USB_HID_FS.res "
+<h3>Output Window</h3>
+Compiling...
+USB_HID_FSDlg.cpp
+Linking...
+
+
+
+<h3>Results</h3>
+USB_HID_FS.exe - 0 error(s), 0 warning(s)
+</pre>
+</body>
+</html>

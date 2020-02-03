@@ -1,0 +1,2 @@
+cd /home/jb/lib/python
+python soundclient.py $*

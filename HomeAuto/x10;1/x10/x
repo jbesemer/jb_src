@@ -1,0 +1,690 @@
+#!/usr/local/bin/python
+
+##############################
+# Format and send X10 commands
+#
+# Arg Syntax: { x10_command { unit_codes } }
+#
+#
+# TODO:
+#
+#	Resolve overlap with P1 and L1 commands
+#
+
+from __future__ import nested_scopes
+
+import os, sys, os.path
+import string, re
+import select
+import time
+import rawio;	RawIO=rawio.RawIO
+
+##############################
+## flags to control operation
+
+class Flag:
+	def __init__( self, init=0 ):
+		self.value = init
+	def toggle( self ):
+		self.value = not self.value
+	def set( self, value ):
+		self.value = value
+
+NFlag = Flag()	# go through motions but don't send anything
+GFlag = Flag()	# just show generated commands
+IFlag = Flag()	# just show intermediate code
+OFlag = Flag()	# suppress optimizations
+SFlag = Flag(1)	# print timing info
+WFlag = Flag()	# simply watch traffic
+
+
+errors = 0		# count of fatal errors
+
+##############################
+# misc global/constants
+
+valid_house_codes = "ABCDEFGHIJKLMNOP"
+valid_unit_codes = range( 1, 17 )
+
+alias_file = "x10_aliases"
+
+address_aliases = {}
+
+minReplyTimeout = 1.0
+timeoutBaseline = 0.75	# minimum
+timeoutIncrement = 0.2	# per "repeat"
+
+def setrt( args ):
+	try:
+		arg = args.next()
+		minReplyTimeout = string.atof( arg )
+		tty.settimeout( minReplyTimeout )
+	except IndexError:
+		err( "missing timeout argument for -t flag" )
+	except ValueError:
+		err( "argument for -t flag is not a float: %s", arg )
+
+
+##############################
+## command dictionaries
+
+CIX_ARGC = 0	# field 0 is arg count/type
+CIX_DESC = 1	# field 1 is descriptions
+CIX_ACTN = 0	# field 0 alternatively is system action
+
+common_commands = {
+	"A0":	( 0, "all units off" ),
+	"L1":	( 0, "all lights on" ),
+	"ON":	( 1, "units on" ),
+	"OF":	( 1, "units off" ),
+	"DI":	( 2, "units dim" ),
+	"BR":	( 2, "units brighten" ),
+	"L0":	( 0, "all lights off" ),
+	}
+
+repeat_commands = [ "DI", "BR" ]
+
+advanced_commands = {
+	"HR":	( 0, "hail REQ" ),
+	"HA":	( 0, "hail ACK *" ),
+	"P0":	( 1, "Preset dim #0" ), #house code is low bits
+	"P1":	( 1, "Preset dim #1" ), #house code is low bits
+	"SR":	( 1, "Status REQ" ),
+	"S1":	( 0, "Status is on *" ),
+	"S0":	( 0, "Status is off *" ),
+	"EC":	( 3, "extended code !!" ), #any number of code bytes
+	"ED":	( 3, "Extended Data !!" ),	#any number of data bytes
+	}
+
+valid_commands = common_commands.keys() + advanced_commands.keys()
+
+system_commands = {
+	"-h":	[ "help()", "Print help message" ],
+	"-t":	( setrt, "Set reply timeout to next arg following" ),
+	"-n":	( NFlag, "NO action -- go through all motions but don't send commands" ),
+	"-i":	( IFlag, "show intermediate codes (implies -n)" ),
+	"-g":	( GFlag, "show Generated commands (implies -n)" ),
+	"-o":	( OFlag, "suppress optimizations" ),
+	"-s":	( SFlag, "print timing statistics" ),
+	"-w":	( WFlag, "monitor line and print codes" ),
+	}
+
+command_synonyms =  {
+	"alloff":	"A0", 
+	"allon":	"L1", 
+	"lightson":	"L1", 
+	"lightsoff":	"L0", 
+	"lon":		"L1", 
+	"loff":		"L0", 
+	"lights1":	"L1", 
+	"lights0":	"L0",
+	"BRight":	"BR",
+	"OFf":		"OF",
+	"DIm":		"DI",
+	"-help":	"-h",
+	}
+
+# tty parameters
+
+tty_name = "/dev/ttyS1"
+stty_flags = ( "2400 cs8 cstopb -echo -echoctl -ignbrk"
+		+ " -ignpar icrnl -isig -icanon -tostop" )
+
+
+#################################
+# misc utilities
+
+def timestamp():
+	year,month,day,hour,min,sec,wd,jd,dst = time.localtime()
+	return "%02d:%02d:%02d" % ( hour, min, sec )
+
+def echo( where, what ):
+	ts = timestamp()
+	print ts, where, quote( what )
+
+def echo_send( what ):
+	echo( 'send:', what )
+
+def echo_recv( what ):
+	if what == None:
+		echo( 'recv:', "[Timeout]" )
+	else:
+		echo( 'recv:', what )
+
+def quote( str ):
+	def quotesub( match ):
+		return "^" + chr( ord( match.group(1)) + 0100 )
+		
+	return re.sub( "([\0-\37])", quotesub, str )
+
+def err( fmt, *args ):
+	global errors
+	print "Error:", fmt % args
+	errors += 1
+
+def valid_address( addr ):
+	return re.match( "[A-Pa-p]((0?[0-9])|(1[1-6]))$", addr )
+
+def numeric( str ):
+	return re.match( "[0-9]+$", str )
+
+# import pprint;	ppp=pprint.PrettyPrinter(indent=4); pp=ppp.pprint
+
+def pp( codes ):
+	for code in codes:
+		print code
+
+## print help message
+
+command_name = os.path.basename( sys.argv[0])
+
+def help( dummy ):
+	print "Command syntax is:", command_name, "{ command { unitcode }}"
+	print
+
+	def pr_cmds( title, commands ):
+		print title
+		for cmd, data in commands.items():
+			names = [ cmd ]
+			for ali, syn in command_synonyms.items():
+				if cmd == syn:
+					names.append( ali )
+			print "  ", ", ".join( names ), "--", data[ CIX_DESC ]
+		print
+
+	pr_cmds( "Common commands:", common_commands )
+	pr_cmds( "Advanced commands:", common_commands )
+	pr_cmds( "Internal commands:", system_commands )
+
+# back-patch circular reference
+
+system_commands[ "-h" ][ CIX_ACTN ] = help
+
+## peek/get list traversal
+
+class ListReader:
+	"add list elements one at a time, allow peeking"
+
+	def __init__( self, args=None):
+		if args == None:
+			self.args = []
+		else:
+			self.args = args
+		self.index = 0
+
+	def __len__( self ):
+		return len( self.args )
+
+	def __getitem__( self, item ):
+		return self.args[ item ]
+
+	def _nextindex( self ):
+		self.index += 1
+		return self.index - 1
+
+	def rewind( self ):
+		self.index = 0
+
+	def peek( self ):
+		if self.index >= len( self.args ):
+			return None
+		else:
+			return self.args[ self.index ]
+
+	def next( self ):
+		if self.index >= len( self.args ):
+			raise IndexError # StopIteration
+		return self.args[ self._nextindex() ]
+
+class ListIO( ListReader ):
+	def append( self, item ):
+		self.args.append( item )
+
+## track/report timing statistics
+
+startTime = 0.0
+commandCount = 0
+
+def timetrack( function, args ):
+	"run a command and track total elapsed time"
+
+	global startTime
+
+	startTime = time.time()
+	
+	function( args )
+
+	total = time.time() - startTime
+	
+	print "total runtime:", "%6.3f" % total,
+
+	if commandCount:
+		print "%6.3f" % ( total / commandCount ), 
+		print "per", commandCount, "command(s)"
+	else:
+		print
+
+
+##################################
+# read alias file
+
+# address aliases is a flat map alias -> addresses
+# the mapping may be recursive, though it is expanded
+# upon reference, not here.
+
+def load_address_aliases( filename ):
+
+	aliases = open( filename )
+	if not aliases:
+		print "Warning: cannot open address alias file:", filename
+
+	for line in aliases.readlines():
+		line = re.sub( "#.*", "", line )
+		line = re.sub( "[ \t]+", " ", line )
+		line = line.strip()
+
+		if line:
+			if "=" in line:
+				name, alias = line.split( "=", 1 )
+				name = name.strip().lower()
+				alias = alias.strip().lower()
+				address_aliases[ name ] = alias
+				# print "alias", name, " = ", alias
+				continue
+
+			if "[" in line:
+				continue
+
+			print "Syntax error in line:", line
+
+	aliases.close()
+			
+	## data integrity check: warn if aliases and commands overlap
+
+	all_possible_commands = ( valid_commands 
+						+ system_commands.keys() 
+						+ command_synonyms.keys())
+
+	for alias in address_aliases.keys():
+		if alias in all_possible_commands:
+			print "Warning: address alias conflicts with command:", alias
+
+	for addresses in address_aliases.values():
+		addrs = addresses.split()
+		for addr in addrs:
+			if addr not in address_aliases.keys() \
+			and not valid_address( addr ):
+				print "Warning: address alias is undefined:", addr
+		
+
+load_address_aliases( alias_file )
+
+
+##################################
+# tty I/O
+
+class RawTtyIO( RawIO ):
+
+	def __init__( self, tty_name ):
+
+		if NFlag.value:
+			return
+
+		# set proper speed, etc.
+
+		rv = os.system( "stty <%s %s" % ( tty_name, stty_flags ))
+		if ( rv >> 8 ) != 0:
+			print "warning: unable to stty", tty_name
+
+		RawIO.__init__( self, tty_name, exception=1 )
+		self.settimeout( minReplyTimeout )
+
+		# I believe the X10 device is powered by RS232 lines
+		# that are "off" until the device is open.  And the 
+		# device is not ready to use immediately after being 
+		# powered up.  Previous attempts to send/recv usually
+		# (always) resulted in a timeout and masked the problem.
+		# anyway, sending without the delay introduces errors.
+
+		time.sleep( 0.25 )
+
+		# self.send( "\0" )
+		# self.getline( ignoreblanks=0 )
+
+		startTime = time.time()
+
+	def send( self, cmd, echo=1 ):
+		self.put(  cmd + "\r" )
+		# if cmd and echo:
+		if echo:
+			echo_send( cmd )
+
+	def getline( self, ignoreblanks=1, timeout=None, echo=1 ):
+		try:
+			res = RawIO.getline( self, 
+						timeout, 
+						ignoreblanks=ignoreblanks )
+		except rawio.RawIOTimeout, ex:
+			res = None
+
+		if echo:
+				echo_recv( res )
+		return res
+
+	def watch( self ):
+		while 1:
+			res = RawIO.getline( self, wait=0 )
+			echo_recv( res )
+
+tty = RawTtyIO( tty_name )
+
+def command_response( cmd, retry=0 ):
+	"send the command and get the response, if any"
+
+	# fake success
+	if NFlag.value:
+		echo_send( cmd )
+		cmd = "!" + cmd
+		echo_recv( cmd )
+		return cmd
+
+	# Although the PC communicates with the X10 device
+	# at 2400 baud, the X10 device communicates with the
+	# powerline at only 60 baud.  Assuming the X10 device
+	# receives simultaneously with transmitting (it must),
+	# then we are talking 16.67 msec to the device, 666.67
+	# msec. to send/recv on the power line, and another 
+	# 16.67 msec. back to the PC.  
+	#
+	# This totals 0.7 seconds round trip per command.
+
+	# send the command
+	tty.send( cmd )
+
+	# return response
+	return tty.getline()
+
+def send_x10( cmd, timeout, maxRetries=9 ):
+	"send a command and retry until a proper reply is received"
+
+	tty.settimeout( timeout )
+	results = []
+
+	for retry in xrange( maxRetries ):
+
+		if retry:
+			time.sleep( 1.0 )
+
+		res = command_response( cmd, retry )
+
+		if res == None:
+			echo_recv( "tty.getline() timed out" )
+			continue
+
+		elif res[0] == "?":
+			echo_recv( " -- ERROR returned from X10: " 
+				+ quote( res ))
+
+		elif res == ">XXX":
+			echo_recv( " -- command was garbled" )
+
+		elif res == ( "!" + cmd ) or res == ( ">" + cmd ):
+			# print ""
+			results.append( res )
+			return results
+
+		elif res[0] == ">":
+			results.append( res )
+
+		else:
+			echo_recv( " -- unexpected result (" + quote( res ) + ")" )
+
+	echo_send( "Retry count exceeded" )
+
+
+#################################
+# execute codes
+
+def execute( codes ):
+	for code in codes:
+		send_x10( code.code, code.timeout )
+
+#################################
+# code generation
+#
+
+
+# constants shared between parsing and code-gen
+
+OP_REP = "rep"
+OP_CMD = "com"
+OP_ADDR = "adr"
+
+
+def generate( syntax ):
+
+	class semantic:
+		"semantic elements"
+
+		def __init__( self, code, timeout ):
+			self.code = code
+			self.timeout = timeout
+
+		def __str__( self ):
+			return "sem( %s, %5.3f )" % ( self.code, self.timeout )
+
+	reader = ListReader( syntax )
+	results = ListIO()
+	command = Flag()
+	repeat = Flag( 0 )
+
+	def calc_timeout():
+		if command.value in ["DI", "BR"]:
+			return ( timeoutBaseline 
+				+ repeat.value * timeoutIncrement )
+		else:
+			return timeoutBaseline
+
+	def handle_rep( code ):
+		repeat.set( string.atoi( code[1:]))
+		results.append( semantic( code, timeoutBaseline ))
+	
+	def handle_cmd( code ):
+		# ?? this probably has to change to directly
+		# ?? generate certain advanced commands
+		# command = code #!! this fails
+		command.set( code )
+
+	def handle_addr( addr ):
+		def optimize1( addr, next ):
+			"return true if optimization is allowed"
+			# the optimization is that the trailing command
+			# may be omitted.  This is allowed for any sequence
+			# of units that share a common house code.  
+			# ?? this probably has to be changed to exclude
+			# ?? certain operator types
+			return ( not OFlag.value
+				and next
+				and next.type == OP_ADDR
+				and next.value[0] == addr[0]
+				)
+			
+		results.append( semantic( addr, timeoutBaseline ))
+		if optimize1( addr, reader.peek()):
+			return
+
+		results.append( 
+			semantic( addr[0] + command.value, 
+			calc_timeout()))
+
+		global commandCount
+		commandCount += 1
+
+	# table to call known op codes
+	handle = { 
+		OP_REP:		handle_rep,
+		OP_CMD:		handle_cmd,
+		OP_ADDR:	handle_addr,
+		}
+
+	if reader.peek().type not in [ OP_REP, OP_CMD ]:
+		err( "A command must preceed first address" )
+		return
+
+	while 1:
+		try:	
+			code = reader.next()
+		except IndexError:
+			return results
+
+		handle[ code.type ]( code.value )
+
+
+	
+#################################
+# argument processing
+
+
+def parse( args ):
+	# syntax is { cmd { arg }}
+
+	class syntactic:
+		"syntactic elements"
+		def __init__( self, type, value ):
+			self.type = type
+			self.value = value
+
+		def __str__( self ):
+			return "syn( %s, %-3.3s )" % ( self.type, self.value )
+
+	args = ListReader( args )
+	cmds = ListIO()
+
+	def do_system_cmd( arg, args ):
+		if arg not in system_commands.keys():
+			err( "Illegal command switch: %s", arg )
+			return
+		action = system_commands[ arg ][ 0 ]
+		if callable( action ):
+			action( args )
+		else:
+			action.toggle()
+				
+	def gen( code, arg ):
+		# print "gen",code,arg
+		cmds.append( syntactic( code, arg ))
+
+	def synerr( msg, args ):
+		err( msg, args )
+		raise SyntaxError
+
+	def parse_command( command, args ):
+		cmd = command[:2].upper()
+		if cmd not in valid_commands:
+			synerr( "Illegal command: %s", command )
+
+		if cmd in repeat_commands:
+			if numeric( args.peek()):
+				gen( OP_REP, "R%02d" % int( args.next()))
+			else:
+				print "Warning: reusing previous repeat count with", command
+
+		gen( OP_CMD, cmd )
+
+	def parse_address( addr ):
+
+		# print "parse_address",addr
+
+		if addr in address_aliases.keys():
+			for alias in address_aliases[ addr ].split():
+				parse_address( alias )
+			return
+
+		def parse_unit( unit ):
+			if re.match( "^[0-9]+$", unit ):
+				iunit = int( unit )
+				if iunit in valid_unit_codes:
+					return iunit
+				else:
+					err( "Invalid unit code in: %s", addr )
+					raise SyntaxError
+			else:
+				raise SyntaxError
+
+		house = addr[0].upper()
+		unit = parse_unit( addr[1:])
+
+		if house in valid_house_codes:
+			gen( OP_ADDR, "%s%02d" % ( house, unit ))
+		else:
+			err( "Invalid house code: %s", addr )
+
+
+	while 1:
+		try:
+			arg = args.next().lower()
+
+		except IndexError:		# StopIteration
+			return cmds
+
+		if arg in command_synonyms.keys():
+			arg = command_synonyms[ cmd ]
+
+		if arg[0] == '-':
+			do_system_cmd( arg, args )
+			continue
+
+		# this is where the code assumes that commands 
+		# and address aliases are distinct:
+
+		try:
+			if arg[:2].upper() in valid_commands:
+				parse_command( arg, args )
+			else:
+				parse_address( arg )
+		except SyntaxError:
+			err( "Not a valid command or address: %s", arg )
+
+
+
+# main program
+
+def main():
+
+	if len( sys.argv ) <= 1:
+		print "For help type:", command_name, "-h"
+		return
+
+	intermediate = parse( sys.argv[ 1: ])
+
+	if WFlag.value:
+		print "Watching X10 line activity..."
+		tty.watch()
+		# never returns
+
+	if IFlag.value:
+		print "Itermediate code:"
+		pp( intermediate )
+		if not GFlag:
+			return
+
+	if errors or not intermediate:
+		return
+
+	results = generate( intermediate )
+
+	if GFlag.value:
+		print "Generated codes:"
+		pp( results )
+
+	if errors or not results:
+		return
+
+	if SFlag.value:
+		timetrack( execute, results )
+	else:
+		execute( results )
+
+main()
+
+

@@ -1,0 +1,516 @@
+#!/usr/bin/python2.1
+
+import os, sys
+from time import time, localtime, asctime
+from os import system
+from string import *
+from LogFile import *
+from util import *
+from ErrTab import *
+import fcntl, IOCTL
+import soundclient
+
+########################################
+# config options
+
+########################################
+# global settings
+
+EnableVoice = 0	# enabled for voice output
+
+EnableTestOutputs = 0	# special mode for testing outputs
+TestOutput = None
+
+Stats = None
+States = None
+
+########################################
+# voice support
+
+def say( s ):
+	if EnableVoice:
+		sendspeech( s )
+
+def pns( s ):
+	print s
+	if EnableVoice or EnableTestOutputs:
+		sendspeech( s )
+
+ValueWord = {
+	"0":	"Off",
+	"1":	"On",
+	0:	"Off",
+	1:	"On" }
+
+########################################
+# serial I/O device
+
+########################################
+# serial I/O device
+
+TTY = "/dev/ttyS1"
+ttyi = open( TTY, "rb" )
+ttyo = open( TTY, "wb" )
+
+def SendBreak():
+	ioctl( ttyo.fileno(), IOCTL.TCSBRK, 0 )
+
+def send( cmd ):
+	ttyo.write( "\n" + cmd + "\n" )
+	print "CMD:", cmd
+
+def normPin( pin ):
+	return pin[0] + chr( ord('@') + int( pin[1:]))
+
+def set( pin, value ):
+	send( "A" + normPin( pin ) + `value` )
+
+########################################
+# this should go somewhere else
+
+CMD_SEND_0 = 22
+CMD_SEND_1 = 23
+CMD_SEND_B = 24
+MAX_PORTS = 3
+
+########################################
+# handle incoming serial data
+
+QUOTE = chr( 0x80 )
+NL = "\n"
+QUOTE_QUOTE = QUOTE + QUOTE
+QUOTE_NL = QUOTE + NL
+
+def HandleSerial( data ):
+	if len( data ) < 3:
+		return
+
+	port = ( ord( data[ 1 ]) - ord( 'A' )) % MAX_PORTS
+
+	# for now, just echo into logfile.
+	# eventually, route serial data to a port.
+	# trailing newline has already been removed
+
+	if data[-1] == QUOTE:
+		data += "\n" 
+
+	data = replace( data, QUOTE_NL, "\\n" )
+	data = replace( data, QUOTE_QUOTE, QUOTE )
+
+	outs(( "COM%d: " % port ) + data[2:] )
+
+########################################
+# track various statistics
+
+class Stat:
+	def __init__( self ):
+		self.lines = self.bytes = 0
+		self.t0 = time()
+
+
+	def InLine( self, line ):
+		self.lines = self.lines + 1
+		self.bytes = self.bytes + len( line )
+
+
+	def BlockBegin( self, line ):
+		if len( line ) > 1:
+			k = c2b( line[ 1 ])
+		else:
+			k = 4
+		if len( line ) > 2:
+			l = 1 << c2b( line[ 2 ])
+		else:
+			l = 128
+		if l > 1024:
+			l = 1024
+		m = k * 1024 / l
+
+		# print "line[1,2]:", line[1], line[2]
+
+		outcs( "DIAG Absorbing block serial data, " 
+			+ i2s( k ) + "K, " 
+			+ i2s( m ) + " * " + i2s( l ) + " char lines" )
+
+		self.t0 = time()
+		self.BeginLines = self.lines
+		self.BeginBytes = self.bytes
+
+
+	def BlockEnd( self ):
+
+		t1 = time()
+		dt = t1 - self.t0
+		lines = self.lines - self.BeginLines
+		bytes = self.bytes - self.BeginBytes
+
+		outcs( "DIAG Absorbed " + i2s( lines ) + " lines, " 
+			+ i2s( bytes ) + " bytes, " 
+			+ i2s( dt ) + " sec, " 
+			+ f2s( bytes / dt ) + " bytes/sec, " 
+			+ f2s( lines / dt ) + " lines/sec" )
+
+
+########################################
+# track time varying values
+
+class IntStats:
+	def __init__( self, n ):
+		self.len = n
+		self.count = n*[ 0 ]
+		self.prev = n*[ 0 ]
+		self.mean = n*[ 0 ]
+
+	def add( self, index, value ):
+		if 0 <= index < self.len:
+			value = atoi( value )
+			if self.count[ index ]:
+				self.mean[ index ] = \
+					( value + self.mean[ index ]) / 2
+			else:
+				self.mean[ index ] = value
+			self.count[ index ] += 1
+			self.prev[ index ] = value
+			
+
+class FloatStats:
+	def __init__( self, n ):
+		self.len = n
+		self.count = n*[ 0 ]
+		self.prev = n*[ 0.0 ]
+		self.mean = n*[ 0.0 ]
+
+	def add( self, index, value ):
+		if 0 <= index < self.len:
+			value = atof( value )
+			if self.count[ index ]:
+				self.mean[ index ] = \
+					( value + self.mean[ index ]) / 2.0
+			else:
+				self.mean[ index ] = value
+			self.count[ index ] += 1
+			self.prev[ index ] = value
+			
+class Analog:
+
+	def __init__( self, n = 0 ):
+		self.len = n
+		self.cald = FloatStats( n )
+		self.raw = IntStats( n )
+		self.slope = FloatStats( n )
+		self.offset = IntStats( n )
+		self.data = [self.cald, self.raw, self.slope, self.offset]
+
+	def add( self, type, chan, value ):
+		if 0 <= type < 4 and 0 <= chan < self.len:
+			self.data[ type ].add( chan, value )
+
+	def prev( self, type, chan ):
+		if 0 <= type < 4 and 0 <= chan < self.len:
+			return self.data[ type ].prev[ chan ]
+
+	def mean( self, type, chan ):
+		if 0 <= type < 4 and 0 <= chan < self.len:
+			return self.data[ type ].mean[ chan ]
+
+	def count( self, type, chan ):
+		if 0 <= type < 4 and 0 <= chan < self.len:
+			return self.data[ type ].count[ chan ]
+
+
+########################################
+# testing outputs
+#
+#	inputs pins A0 and A1 are used to switch outputs
+#
+#		A0 => enable pin before TestOutput
+#		A1 => enable pin after TestOutput
+#		A0&A1 => toggle output on or off
+#
+
+class TestOutputState:
+	
+	def __init__( self, pin ):
+		self.pin = pin
+		self.on = 0
+		self.state = [ 0, 0, 0 ]
+	
+	def start( self ):
+		pns( "Enabled for testing outputs, "
+			+ "starting with pin " 
+			+ self.pin )
+		# set( self.pin, self.on )
+		send( "Q30" )	# turn off trace mode
+		send( "LH" )	# clear bank H
+		send( "LI" )	# clear bank I
+		send( "LJ" )	# clear bank J
+		pns( "12 Volt Power ON" )
+		send( "AK01" )
+
+	def newstate( self, pin, value ):
+		"return what the new state will be"
+		new = list( self.state )
+		new[ pin ] = int( value )
+		if new[ 0 ] and new[ 1 ]:
+			new[ 2 ] = 1
+		if not new[ 0 ] and not new[ 1 ]:
+			new[ 2 ] = 0
+		return new
+
+	def change( self, bank, pin, value ):
+
+		pin = int( pin )
+		
+		if bank != "A" or pin > 1:
+			speak( bank + `pin` + " " + ValueWord[ value ])
+			return
+
+		new = self.newstate( pin, value )
+		print self.state, "->", new
+
+		if self.state[ 2 ]:
+			if not new[ 2 ]:
+				self.on = 1 -  self.on
+				set( self.pin, self.on )
+		else:
+			if self.state[ 1 ] > new[ 1 ]:
+				set( self.pin, 0 )
+				self.pin = self.succ( self.pin )
+				set( self.pin, self.on )
+			
+			elif self.state[ 0 ] > new[ 0 ]:
+				set( self.pin, 0 )
+				self.pin = self.pred( self.pin )
+				set( self.pin, self.on )
+
+		self.state = new
+	
+	def succ( self, pin ):
+		bank = pin[0]
+		pin = int( pin[1:]) + 1
+		if pin >= 16:
+			pin = 0
+			bank = chr( ord(bank) + 1 )
+		return bank + `pin`
+
+	def pred( self, pin ):
+		bank = pin[0]
+		pin = int( pin[1:]) - 1
+		if pin < 0:
+			pin = 15
+			bank = chr( ord(bank) - 1 )
+		return bank + `pin`
+
+
+########################################
+# track input line states, transitions
+
+class State:
+
+	def __init__( self, size ):
+		self.size = size
+		self.masks = size * [0]
+		self.values = size * [0]
+		self.ana = Analog( 10 )
+
+	def change( self, bank, pin, value ):
+		outs( "CHANGE " 
+			+ bank + i2d( pin ) 
+			+ " " 
+			+ i2s( value ))
+		if EnableTestOutputs:
+			TestOutput.change( bank, pin, value )
+		else:
+			say( "Change " 
+				+ bank + i2d( pin ) 
+				+ " to " 
+				+ i2s( value ))
+
+	def changes( self, bank, diff, value ):
+		for pin in xrange( 16 ):
+			if diff & 1:
+				self.change( bank, pin, value & 1 )
+			value = value >> 1
+			diff = diff >> 1
+
+	def update( self, bank, pin, value ):
+		index = c2b( bank )
+		value = s2w( value )
+
+		if index < 0 or index > self.size:
+			outcs( "Invalid bank: " + str( index ))
+			return
+
+		if pin == '*':		# bank update
+
+			if self.values[ index ] != value:
+				diff = self.values[ index ] ^ value
+				self.changes( bank, diff, value )
+				self.values[ index ] = value
+
+		else:			# pin update
+
+			pin = c2b( pin )
+			self.change( bank, pin, value )
+			self.values[ index ] = setbit( self.values[ index ], pin, value )
+
+	def updateFromLine( self, line ):
+		if len( line ) < 4:
+			outcs( "Bad update: " + line )
+			return
+
+		bank = line[ 0 ]
+		pin = line[ 1 ]
+		value = line[ 3: ]
+
+		self.update( bank, pin, value )
+
+		outes( line + "    # 0x" + i2h4( s2w( value )))
+
+	def updateAnalogFromLine( self, line ):
+		if len( line ) > 4:
+			type = ord( line[ 0 ]) - ord( 'L' )
+			chan = ord( line[ 1 ]) - ord( '@' )
+
+			self.ana.add( type, chan, line[ 3: ])
+
+			desi = upper( line[ 0 ]) + ( "%02d" % chan )
+
+			outs( "Analog: " 
+				+ desi
+				+ line[ 3: ]
+				+ "  # " 
+				+ ( "%9.7f" % self.ana.mean( type, chan ))
+				+ "  ( " 
+				+ ( "%05d" % self.ana.count( type, chan ))
+				+ " )" )
+
+########################################
+# main command cracker
+
+def ProcessLine( line ):
+
+	'''Process a single input line'''
+	
+	# processing is entirely stateless
+
+	Stats.InLine( line )
+	line = rstrip( line )
+
+	if len( line ) == 0:
+		ch = chr( 0 )	# should match no pattern
+	else:
+		ch = line[ 0 ]
+
+	# lines matching this first group of patterns 
+	# do NOT get echoed (or they modify before echoing)
+
+	if ch == '~':
+		return
+
+	if ch == '{':
+		Stats.BlockBegin( line )
+		return
+
+	if ch == '}':
+		Stats.BlockEnd()
+		return
+
+	if len( line ) > 3 and line[2] == ':':
+		States.updateAnalogFromLine( line )
+		return
+
+	if len( line ) > 3 and line[2] == '=':
+		States.updateFromLine( line )
+		return
+
+	if ch == '>':
+		HandleSerial( line )
+		return
+
+	if ch == "?":
+		outs( "Error: " + 
+			ErrMessage( line[1]) + 
+			" (" + line[2] + ")" )
+		return
+
+	if len( line ) == 0:
+		return
+
+	# lines matching this first group of patterns 
+	# echo input
+
+	outes( line )
+
+	# remaining patterns follow echoed input
+
+	if line == "READY":
+		init_io()
+
+########################################
+# initialization and startup
+
+# init IOM
+
+def Init():
+
+	global Stats, States
+	Stats = Stat()
+	States = State( 17 )
+
+#	Logfile.open()
+
+	outcs( "IOM Initialization" )
+
+	init_tty()
+	init_io()
+
+	if EnableVoice:
+		speak( "IOM Initialization complete" )
+
+	if EnableTestOutputs:
+		TestOutput.start() 
+# init TTY
+
+def init_tty():
+	outcs( "TTY Initialization" )
+	rc = system( "init_tty" )
+	if rc:
+		outcs( "# system() returns %d" % rc )
+
+# init IO
+
+def init_io():
+	outcs( "IO Initialization" )
+	rc = system( "init_io" )
+	if rc:
+		outcs( "# system() returns %d" % rc )
+	outcs( "IO Initialization complete" )
+
+def Args():
+	global EnableVoice, EnableTestOutputs, TestOutput
+
+	for arg in sys.argv[1:]:
+		if arg == "-v":
+			EnableVoice = 1
+			pns( "Voice Enabled" )
+		
+		if arg[:11] == "testoutput=":
+			EnableTestOutputs = 1
+			TestOutput = TestOutputState( arg[11:])
+	
+def Main():
+	Args()
+	Init()
+	outcs( "IOM Commencement" )
+
+	while 1:
+		line = ttyi.readline()
+		ProcessLine( line )
+
+########################################
+# begin execution
+
+if __name__ == "__main__":
+	Main()
+

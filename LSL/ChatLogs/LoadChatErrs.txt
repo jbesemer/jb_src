@@ -1,0 +1,65 @@
+C:\Documents and Settings\jbesemer\Desktop\LSL>python LoadChat.py chat.txt
+c:\Program Files\Python26\lib\site-packages\MySQLdb\__init__.py:34: DeprecationW
+arning: the sets module is deprecated
+  from sets import ImmutableSet
+Importing: chat
+## no match: [21:49] Freestar Tammas: I"im not adding either
+
+## no match: [21:49] Freestar Tammas: I"im not adding either
+
+## no match: [12:10] Griffin Nikolaidis: lol
+
+## no match: [12:10] Griffin Nikolaidis: the drugs are wearing off!
+
+## no match: [12:10] Tamo Faulds: hahahahahha
+
+## no match: [23:10] Delinda Dyrssen: hiPato
+
+## no match: [23:10] Pato Milo: we are 2 hours outside of LA
+
+## no match: [23:10] Pato Milo: on 5
+
+## no match: [23:10] Delinda Dyrssen: cool!
+
+## no match: [23:10] Delinda Dyrssen: drive safe
+
+## no match: [23:10] Pato Milo: Rachel and Elliott and I are in a hotel :)
+
+## no match: [23:10] Pato Milo: Disneyland tomorrow!
+
+## no match: [19:43] Rae Qinan: You've got my full attention. You are attracted
+to robots.
+
+## no match: [19:44] Pulaski Fizz: well I do have a mechanical arm
+
+## no match: [19:44] Rae Qinan: Interesting. How much did it cost? it.
+
+## no match: [19:52] Rae Qinan: I am on disk.
+
+## no match: [19:53] Pulaski Fizz: what about blueray?
+
+## no match: [19:53] Rae Qinan: Rhetorical questions are so over.
+
+## no match: [19:53] Pulaski Fizz: I take that as a no.
+
+## no match: [19:53] Rae Qinan: Yes, that's what I mean, isn't it clear?
+
+## no match: [20:57] Medusa Radek: siempre que te veo bailar...
+
+## no match: [20:58] Medusa Radek: me dan unas ganas de regalarte una buena anim
+aci+¦n...!!!
+
+## no match: [20:58] Medusa Radek: :-)
+
+### TOO LONG NAME: Intan Couple Dance Ball is not loaded with couple dances, ple
+ase read the Quick Reference or go to
+### TOO LONG NAME: Intan Couple Dance Ball is not loaded with couple dances, ple
+ase read the Quick Reference or go to
+### TOO LONG NAME: Intan Couple Dance Ball is not loaded with couple dances, ple
+ase read the Quick Reference or go to
+### TOO LONG NAME: Intan Couple Dance Ball is not loaded with couple dances, ple
+ase read the Quick Reference or go to
+### TOO LONG NAME: Intan Couple Dance Ball is not loaded with couple dances, ple
+ase read the Quick Reference or go to
+
+C:\Documents and Settings\jbesemer\Desktop\LSL>

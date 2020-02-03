@@ -1,0 +1,331 @@
+//Microsoft Developer Studio generated resource script.
+//
+#include "resource.h"
+
+#define APSTUDIO_READONLY_SYMBOLS
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 2 resource.
+//
+#include "afxres.h"
+
+/////////////////////////////////////////////////////////////////////////////
+#undef APSTUDIO_READONLY_SYMBOLS
+
+/////////////////////////////////////////////////////////////////////////////
+// English (U.S.) resources
+
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)
+#ifdef _WIN32
+LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
+#pragma code_page(1252)
+#endif //_WIN32
+
+#ifdef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// TEXTINCLUDE
+//
+
+1 TEXTINCLUDE DISCARDABLE 
+BEGIN
+    "resource.h\0"
+END
+
+2 TEXTINCLUDE DISCARDABLE 
+BEGIN
+    "#include ""afxres.h""\r\n"
+    "\0"
+END
+
+3 TEXTINCLUDE DISCARDABLE 
+BEGIN
+    "#define _AFX_NO_SPLITTER_RESOURCES\r\n"
+    "#define _AFX_NO_OLE_RESOURCES\r\n"
+    "#define _AFX_NO_TRACKER_RESOURCES\r\n"
+    "#define _AFX_NO_PROPERTY_RESOURCES\r\n"
+    "\r\n"
+    "#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)\r\n"
+    "#ifdef _WIN32\r\n"
+    "LANGUAGE 9, 1\r\n"
+    "#pragma code_page(1252)\r\n"
+    "#endif //_WIN32\r\n"
+    "#include ""res\\USBSignal.rc2""  // non-Microsoft Visual C++ edited resources\r\n"
+    "#include ""afxres.rc""         // Standard components\r\n"
+    "#endif\r\n"
+    "\0"
+END
+
+#endif    // APSTUDIO_INVOKED
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Icon
+//
+
+// Icon with lowest ID value placed first to ensure application icon
+// remains consistent on all systems.
+IDR_MAINFRAME           ICON    DISCARDABLE     "res\\USBSignal.ico"
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Dialog
+//
+
+IDD_ABOUTBOX DIALOG DISCARDABLE  0, 0, 235, 55
+STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "About USBSignal"
+FONT 8, "MS Sans Serif"
+BEGIN
+    ICON            IDR_MAINFRAME,IDC_STATIC,11,17,20,20
+    LTEXT           "USB Signal Version 1.1",IDC_STATIC,38,11,119,8,
+                    SS_NOPREFIX
+    LTEXT           "Copyright (C) 2004  Delcom Engineerng",IDC_STATIC,38,24,
+                    177,8
+    DEFPUSHBUTTON   "OK",IDOK,178,7,50,14,WS_GROUP
+    LTEXT           "www.delcom-eng.com",IDC_STATIC,38,36,177,8
+END
+
+IDD_USBSIGNAL_DIALOG DIALOGEX 0, 0, 374, 151
+STYLE DS_MODALFRAME | WS_POPUP | WS_VISIBLE | WS_CAPTION | WS_SYSMENU
+EXSTYLE WS_EX_CONTEXTHELP | WS_EX_APPWINDOW
+CAPTION "USB Visual Signal Application"
+FONT 8, "MS Sans Serif"
+BEGIN
+    COMBOBOX        IDC_COMBO_DEVICE,4,5,366,40,CBS_DROPDOWN | CBS_SORT | 
+                    WS_VSCROLL | WS_TABSTOP
+    GROUPBOX        "Visual Indicators",IDC_STATIC,4,20,366,81
+    LTEXT           "OFF",IDC_STATIC,37,29,14,8
+    LTEXT           "ON",IDC_STATIC,58,29,12,8
+    LTEXT           "FLASH",IDC_STATIC,71,29,24,8
+    LTEXT           "OnTime",IDC_STATIC,103,29,26,8
+    LTEXT           "OffTime",IDC_STATIC,137,29,26,8
+    LTEXT           "Freq(Hz)",IDC_STATIC,179,29,28,8
+    LTEXT           "Period(s)",IDC_STATIC,221,29,28,8
+    LTEXT           "Duty(%)",IDC_STATIC,265,29,25,8
+    LTEXT           "Offset",IDC_STATIC,306,29,20,8
+    CONTROL         "Green",IDC_STATIC,"Static",SS_LEFTNOWORDWRAP | WS_GROUP,
+                    10,41,20,8
+    RADIOBUTTON     "",IDC_RADIO_GOFF,40,41,8,8,WS_TABSTOP
+    RADIOBUTTON     "",IDC_RADIO_GON,60,41,8,8,WS_TABSTOP
+    RADIOBUTTON     "",IDC_RADIO_GFLASH,79,41,8,8,WS_TABSTOP
+    EDITTEXT        IDC_EDIT_GONTIME,100,39,33,12,ES_CENTER | ES_AUTOHSCROLL | 
+                    ES_NUMBER
+    EDITTEXT        IDC_EDIT_GOFFTIME,134,39,33,12,ES_CENTER | 
+                    ES_AUTOHSCROLL | ES_NUMBER
+    EDITTEXT        IDC_EDIT_GFREQ,173,39,40,12,ES_CENTER | ES_AUTOHSCROLL | 
+                    ES_READONLY | NOT WS_TABSTOP
+    EDITTEXT        IDC_EDIT_GPERIOD,215,39,40,12,ES_CENTER | ES_AUTOHSCROLL | 
+                    ES_READONLY | NOT WS_TABSTOP
+    EDITTEXT        IDC_EDIT_GDUTY,257,39,40,12,ES_CENTER | ES_AUTOHSCROLL | 
+                    ES_READONLY | ES_NUMBER | NOT WS_TABSTOP
+    EDITTEXT        IDC_EDIT_GOFFSET,300,39,33,12,ES_CENTER | ES_AUTOHSCROLL | 
+                    ES_NUMBER
+    LTEXT           "Red",IDC_STATIC,10,57,14,8
+    RADIOBUTTON     "",IDC_RADIO_ROFF,40,57,8,8,WS_TABSTOP
+    RADIOBUTTON     "",IDC_RADIO_RON,60,57,8,8,WS_TABSTOP
+    RADIOBUTTON     "",IDC_RADIO_RFLASH,79,57,8,8,WS_TABSTOP
+    EDITTEXT        IDC_EDIT_RONTIME,100,55,33,12,ES_CENTER | ES_AUTOHSCROLL | 
+                    ES_NUMBER
+    EDITTEXT        IDC_EDIT_ROFFTIME,134,55,33,12,ES_CENTER | 
+                    ES_AUTOHSCROLL | ES_NUMBER
+    EDITTEXT        IDC_EDIT_RFREQ,173,55,40,12,ES_CENTER | ES_AUTOHSCROLL | 
+                    ES_READONLY | NOT WS_TABSTOP
+    EDITTEXT        IDC_EDIT_RPERIOD,215,55,40,12,ES_CENTER | ES_AUTOHSCROLL | 
+                    ES_READONLY | NOT WS_TABSTOP
+    EDITTEXT        IDC_EDIT_RDUTY,257,55,40,12,ES_CENTER | ES_AUTOHSCROLL | 
+                    ES_READONLY | ES_NUMBER | NOT WS_TABSTOP
+    EDITTEXT        IDC_EDIT_ROFFSET,300,55,33,12,ES_CENTER | ES_AUTOHSCROLL | 
+                    ES_NUMBER
+    LTEXT           "Blue",IDC_STATIC,10,72,20,8
+    RADIOBUTTON     "",IDC_RADIO_BOFF,40,72,8,8,WS_TABSTOP
+    RADIOBUTTON     "",IDC_RADIO_BON,60,72,8,8,WS_TABSTOP
+    RADIOBUTTON     "",IDC_RADIO_BFLASH,79,72,8,8,WS_TABSTOP
+    EDITTEXT        IDC_EDIT_BONTIME,100,70,33,12,ES_CENTER | ES_AUTOHSCROLL | 
+                    ES_NUMBER
+    EDITTEXT        IDC_EDIT_BOFFTIME,134,70,33,12,ES_CENTER | 
+                    ES_AUTOHSCROLL | ES_NUMBER
+    EDITTEXT        IDC_EDIT_BFREQ,173,70,40,12,ES_CENTER | ES_AUTOHSCROLL | 
+                    ES_READONLY | NOT WS_TABSTOP
+    EDITTEXT        IDC_EDIT_BPERIOD,215,70,40,12,ES_CENTER | ES_AUTOHSCROLL | 
+                    ES_READONLY | NOT WS_TABSTOP
+    EDITTEXT        IDC_EDIT_BDUTY,257,70,40,12,ES_CENTER | ES_AUTOHSCROLL | 
+                    ES_READONLY | ES_NUMBER | NOT WS_TABSTOP
+    EDITTEXT        IDC_EDIT_BOFFSET,300,70,33,12,ES_CENTER | ES_AUTOHSCROLL | 
+                    ES_NUMBER
+    LTEXT           "PreScalar(ms)",IDC_STATIC,8,88,44,8
+    EDITTEXT        IDC_EDIT_PRESCALAR,57,86,36,12,ES_CENTER | 
+                    ES_AUTOHSCROLL | ES_NUMBER
+    LTEXT           "MaxPeriod(s)",IDC_STATIC,129,88,42,8
+    EDITTEXT        IDC_EDIT_FREQMAX,173,86,40,12,ES_CENTER | ES_AUTOHSCROLL | 
+                    ES_READONLY | ES_NUMBER | NOT WS_TABSTOP
+    LTEXT           "MinPeriod(s)",IDC_STATIC,216,88,40,8
+    EDITTEXT        IDC_EDIT_FREQMIN,257,86,40,12,ES_CENTER | ES_AUTOHSCROLL | 
+                    ES_READONLY | ES_NUMBER | NOT WS_TABSTOP
+    PUSHBUTTON      "&Sync",IDC_BUTTON_SYNC,301,87,32,11
+    GROUPBOX        "Auditory Indicator",IDC_STATIC,4,102,189,44
+    PUSHBUTTON      "St&art",IDC_BUTTONASTART,9,114,34,11
+    PUSHBUTTON      "St&op",IDC_BUTTONASTOP,9,130,34,11
+    LTEXT           "Freq(Hz)",IDC_STATIC,50,116,31,8
+    LTEXT           "Repeat",IDC_STATIC,53,130,24,8
+    EDITTEXT        IDC_EDIT_AFREQ,83,112,40,12,ES_CENTER | ES_AUTOHSCROLL | 
+                    ES_NUMBER
+    EDITTEXT        IDC_EDIT_AREPEAT,83,128,40,12,ES_CENTER | ES_AUTOHSCROLL | 
+                    ES_NUMBER
+    LTEXT           "OnTime",IDC_STATIC,124,114,26,8
+    LTEXT           "OffTime",IDC_STATIC,124,130,26,8
+    EDITTEXT        IDC_EDIT_AONTIME,150,112,40,12,ES_CENTER | 
+                    ES_AUTOHSCROLL | ES_NUMBER
+    EDITTEXT        IDC_EDIT_AOFFTIME,150,128,40,12,ES_CENTER | 
+                    ES_AUTOHSCROLL | ES_NUMBER
+    GROUPBOX        "Button",IDC_STATIC,205,102,72,44
+    CHECKBOX        "Button",IDC_CHECK_BUTTON,212,111,35,10,BS_FLAT | NOT 
+                    WS_TABSTOP
+    CONTROL         "Auto Clear",IDC_CHECK_AUTOCLEAR,"Button",
+                    BS_AUTOCHECKBOX | WS_TABSTOP,212,123,49,10
+    CONTROL         "Audio Confirm",IDC_CHECK_AUTOCONFIRM,"Button",
+                    BS_AUTOCHECKBOX | WS_TABSTOP,212,135,59,10
+    PUSHBUTTON      "&Quit",IDCANCEL,285,132,50,14
+    LTEXT           "Serial: #",IDC_STATIC_SERIAL,281,107,49,8
+    DEFPUSHBUTTON   "OK",IDOK,251,108,19,11,NOT WS_VISIBLE | NOT WS_TABSTOP
+    LTEXT           "Ver:",IDC_STATIC_VER,282,118,49,8
+    LTEXT           "Power",IDC_STATIC,340,29,21,8
+    EDITTEXT        IDC_EDIT_GPOWER,334,39,33,12,ES_CENTER | ES_AUTOHSCROLL | 
+                    ES_NUMBER
+    EDITTEXT        IDC_EDIT_RPOWER,334,55,33,12,ES_CENTER | ES_AUTOHSCROLL | 
+                    ES_NUMBER
+    EDITTEXT        IDC_EDIT_BPOWER,334,70,33,12,ES_CENTER | ES_AUTOHSCROLL | 
+                    ES_NUMBER
+END
+
+
+#ifndef _MAC
+/////////////////////////////////////////////////////////////////////////////
+//
+// Version
+//
+
+VS_VERSION_INFO VERSIONINFO
+ FILEVERSION 1,1,0,0
+ PRODUCTVERSION 1,1,0,0
+ FILEFLAGSMASK 0x3fL
+#ifdef _DEBUG
+ FILEFLAGS 0x1L
+#else
+ FILEFLAGS 0x0L
+#endif
+ FILEOS 0x4L
+ FILETYPE 0x1L
+ FILESUBTYPE 0x0L
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904b0"
+        BEGIN
+            VALUE "Comments", "\0"
+            VALUE "CompanyName", "\0"
+            VALUE "FileDescription", "USBSignal MFC Application\0"
+            VALUE "FileVersion", "1, 1, 0, 0\0"
+            VALUE "InternalName", "USBSignal\0"
+            VALUE "LegalCopyright", "Copyright (C) 2004\0"
+            VALUE "LegalTrademarks", "\0"
+            VALUE "OriginalFilename", "USBSignal.EXE\0"
+            VALUE "PrivateBuild", "\0"
+            VALUE "ProductName", "USBSignal Application\0"
+            VALUE "ProductVersion", "1, 1, 0, 0\0"
+            VALUE "SpecialBuild", "\0"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x409, 1200
+    END
+END
+
+#endif    // !_MAC
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// DESIGNINFO
+//
+
+#ifdef APSTUDIO_INVOKED
+GUIDELINES DESIGNINFO DISCARDABLE 
+BEGIN
+    IDD_ABOUTBOX, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 228
+        VERTGUIDE, 38
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 48
+    END
+
+    IDD_USBSIGNAL_DIALOG, DIALOG
+    BEGIN
+        LEFTMARGIN, 4
+        RIGHTMARGIN, 370
+        VERTGUIDE, 10
+        VERTGUIDE, 30
+        VERTGUIDE, 44
+        VERTGUIDE, 64
+        VERTGUIDE, 83
+        VERTGUIDE, 116
+        VERTGUIDE, 150
+        VERTGUIDE, 193
+        VERTGUIDE, 212
+        VERTGUIDE, 235
+        VERTGUIDE, 277
+        VERTGUIDE, 316
+        VERTGUIDE, 350
+        TOPMARGIN, 3
+        BOTTOMMARGIN, 146
+        HORZGUIDE, 33
+        HORZGUIDE, 45
+        HORZGUIDE, 61
+        HORZGUIDE, 76
+        HORZGUIDE, 92
+    END
+END
+#endif    // APSTUDIO_INVOKED
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// String Table
+//
+
+STRINGTABLE DISCARDABLE 
+BEGIN
+    IDS_ABOUTBOX            "&About USBSignal..."
+END
+
+#endif    // English (U.S.) resources
+/////////////////////////////////////////////////////////////////////////////
+
+
+
+#ifndef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 3 resource.
+//
+#define _AFX_NO_SPLITTER_RESOURCES
+#define _AFX_NO_OLE_RESOURCES
+#define _AFX_NO_TRACKER_RESOURCES
+#define _AFX_NO_PROPERTY_RESOURCES
+
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)
+#ifdef _WIN32
+LANGUAGE 9, 1
+#pragma code_page(1252)
+#endif //_WIN32
+#include "res\USBSignal.rc2"  // non-Microsoft Visual C++ edited resources
+#include "afxres.rc"         // Standard components
+#endif
+
+/////////////////////////////////////////////////////////////////////////////
+#endif    // not APSTUDIO_INVOKED
+

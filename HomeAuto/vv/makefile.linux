@@ -1,0 +1,82 @@
+#/*================================================================*/
+#/* COPYRIGHT:                                                     */
+#/* ----------                                                     */
+#/* Copyright (C) International Business Machines Corp., 1999.     */
+#/*                                                                */
+#/* DISCLAIMER OF WARRANTIES:                                      */
+#/* -------------------------                                      */
+#/* The following [enclosed] code is sample code created by IBM    */
+#/* Corporation.  This sample code is not part of any standard IBM */
+#/* product and is provided to you solely for the purpose of       */
+#/* assisting you in the development of your applications.  The    */
+#/* code is provided "AS IS", without warranty of any kind.  IBM   */
+#/* shall not be liable for any damages arising out of your use of */
+#/* the sample code, even if they have been advised of the         */
+#/* possibility of such damages.                                   */
+#/*================================================================*/
+
+#
+# Makefile for cmdlinespeak and cmdlinespeakfile projects
+#
+.SUFFIXES: .a .cpp .cc .C
+PROG_COMP=EXEDLL
+PROG_NAME=cmdlinespeak
+#
+#  Setup any platform specific variables
+#
+A=a
+S=/
+o=o
+CC=gcc
+CCC=g++
+LINK=$(CCC)
+CFLAGS= -g -Wall
+LDFLAGS= -ldl 
+EXTRALIBS=-libmeci50 -lpthread 
+PROGRAM=$(PROG_NAME)
+PROG1=cmdlinespeakfile
+#
+# Step 5) Name all the object files that make up the component
+#
+OBJECTS=cmdlinespeak.o
+OBJ1=cmdlinespeakfile.o
+#
+# Step 7) Set the names of the source files
+#         based on the object file list.
+#
+SOURCES=$(OBJECTS:.$(o)=.c)
+#
+# Build the component
+#
+all:$(PROGRAM) $(PROG1)
+#
+#  Link the library.
+#
+$(PROGRAM): $(OBJECTS);
+	$(LINK) $(LDFLAGS) -o $(PROGRAM) $(OBJECTS)  $(EXTRALIBS)
+$(PROG1): $(OBJ1);
+	$(LINK) $(LDFLAGS) -o $(PROG1) $(OBJ1)  $(EXTRALIBS)
+#
+# Step 9) Add any special files that  should be cleaned
+#
+clean: ;
+	$(RM) *.$(o) 
+	$(RM) $(PROGRAM)
+	$(RM) $(PROG1)
+
+.c.$(o):
+	$(CC) $(EXTRA_INC) $(CFLAGS) -o $@ -c $<
+.cpp.$(o):
+	$(CCC) $(EXTRA_INC) $(CFLAGS) $(CPPFLAGS) -o $@ -c $<
+.cc.$(o):
+	$(CCC) $(EXTRA_INC) $(CFLAGS) $(CPPFLAGS) -o $@ -c $<
+.C.$(o):
+	$(CCC) $(EXTRA_INC) $(CFLAGS) $(CPPFLAGS) -o $@ -c $<
+
+
+
+
+
+
+
+

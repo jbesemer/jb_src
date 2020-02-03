@@ -1,0 +1,10 @@
+case ${1-all} in
+0|all)	send adc_cal L0,4014,2064,0.003,5.074	;;
+1|all)	send adc_cal L1,4045,2076,0.003,5.074	;;
+2|all)	send adc_cal L2,4058,2090,0.003,5.074	;;
+3|all)	send adc_cal L3,4031,2068,0.003,5.074	;;
+4|all)	send adc_cal L4,4040,2075,0.003,5.074	;;
+5|all)	send adc_cal L5,4044,2077,0.003,5.074	;;
+6|all)	send adc_cal L6,4057,2086,0.003,5.074	;;
+7|all)	send adc_cal L7,4031,2066,0.003,5.074	;;
+esac

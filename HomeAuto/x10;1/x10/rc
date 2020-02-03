@@ -1,0 +1,4 @@
+cd /home/jb/x10
+export PATH='.:/home/jb/bin:/usr/local/bin:/bin:/usr/bin:/usr/contrib/bin:/usr/games'
+/home/jb/x10/setup
+( /home/jb/x10/actd -f /home/jb/x10/events >>/home/jb/x10/actd.log )&

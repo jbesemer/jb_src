@@ -1,0 +1,13 @@
+#!/bin/sh
+
+X10="x10/x10client.py x10/x10server.py"
+IO="io/ioclient.py io/ioserver.py io/iocycle.py"
+APPS="apps/sund.py"
+LIB="lib/python/*.py"
+ALL="$IO $LIB" # "$X10 $IO $APPS $LIB"
+GREP="grep $*"
+
+cd /home/jb
+
+$GREP 	$ALL
+

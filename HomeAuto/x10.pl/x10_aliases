@@ -1,0 +1,45 @@
+// x10 aliases
+
+# temporary assignments for upstairs during vacation
+
+	mbr1		= m2
+	mbr2		= m3
+	mbr_fan		= m1
+
+# living room lights
+
+	lr_overhead 	= b5
+	lr_chase 	= b4
+	lr_nw 		= b3
+	lr_se 		= b2
+
+	# lr groups 
+
+	lr 		= lr_chase lr_nw lr_se	# most common LR address group
+
+	lr_all 		= lr			# all includes overhead light (someday)
+
+# porch light 
+	porch 		= b7
+	f_porch		= b7
+	front_porch	= b7
+
+# first floor mid section
+
+	hall		= b8	# hall just outside 1st floor bathroom
+	bath1		= b9	# 1st floor bathroom
+
+# family room lights
+
+	fr_radiobase	= f1
+	fr_table	= f2
+	lr_standing	= f3
+
+	# groups:
+
+	fr_all 		= f2 f3
+	fr_normal 	= f2
+
+# other
+	jb_desk		= c7
+	jb_fan		= c8

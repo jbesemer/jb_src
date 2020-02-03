@@ -1,0 +1,4 @@
+mv x10client client
+mv x10client.py client.py
+mv x10server server
+mv x10server.py server.py

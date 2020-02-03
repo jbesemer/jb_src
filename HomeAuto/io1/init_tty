@@ -1,0 +1,2 @@
+stty 38400 -echo -onlcr -icrnl -inlcr -ixon -ixoff -icanon -isig </dev/ttyS1
+stty </dev/ttyS1

@@ -1,0 +1,18 @@
+HOME=/home/mailman
+BIN=$HOME/bin
+ADD=$BIN/add_members
+WELCOME=/home/jb/nfalist/www/membersonly/Welcome.htm
+
+cd $HOME
+
+for i in $*
+do
+	echo adding $i to nfalist
+	echo $i | $ADD -n - nfalist
+
+	echo adding $i to non-nfalist
+	echo $i | $ADD -n - non-nfalist
+
+	echo sending $i welcome message
+	mail -s "Welcome to NFAList!" $* <$WELCOME
+done

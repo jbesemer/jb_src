@@ -1,0 +1,325 @@
+#! /usr/local/bin/python2.2
+
+#########################################################
+# logfile -- manage daemons' log files
+#
+#	this class implements the several output functions necessary
+#	to intercept all "print" commands, plus writes to stdout
+#	and stderr.
+#
+#	For maximum reliability, the file is opened, data is written
+#	(appended) to and the file is closed.  In modern computers,
+#	file/buffer/inode data presumably is cached so performance is
+#	not an issue.
+#
+#	NOT:  I/O is expected to be complete lines.  For incomplete lines
+#	NOT:  the file is kept open until the trailing newline is seen.
+#
+#	There is an optional prefix in case multiple daemons wish
+#	to share the same log file.  The prefix appears as the 
+#	first field in all records output by the application.
+#
+#	There's also a provision for third parties to hook in and
+#	receive a copy of all the logged data.  They are serviced
+#	by a separate thread.  Third parties can be any object that 
+#	implements a method named "put()" which accepts a string argument.
+#
+#	There is a provision for starting up a thread that creates
+#	and monitors a socket and launches "watchers" to forward
+#	log data over the socket to a remote observer.
+#
+#	queues a copy of all outgoing writes and then runs a separate
+#	thread to do the forwarding to the remote clients.  This means
+#	clients get slightly slower service but the main app runs 
+#	unimpeded.  
+#
+# TODO:
+#
+#	Print commands normally generate multiple writes, one for 
+#	each element, PLUS an extra one for the trailing newline.
+#	In the present implementation, interleaved threads can
+#	intermingle the output from their individual prints.
+#	This is hard to fix but nor does the conflict often occur.
+
+########################
+# TODO:
+#
+#	refine watchers so that they can request prior history.
+#
+
+from __future__ import nested_scopes
+
+import os, sys, time, re
+import thread
+import socket
+import Queue
+
+from LockedList import *
+
+DEBUG = 0
+
+
+class LogFile( object ):
+
+	"""special version of file for logging info"""
+
+	def __init__( self, filename, prefix="" ):
+
+		# req'd part of file-like objec (most we don't use):
+
+		self.name = filename
+		self.mode = "a"
+		self.softspace = 0
+		self.closed = 1
+
+		# extra state
+
+		self.complete = 1
+		self.prev_dayt = None
+		self.prefix = prefix
+
+		# reroute outputs to dev_null or designated error log
+
+		sys.stdout = self
+		if not DEBUG: 
+			sys.stderr = self
+
+		# create queue, watcher list and 
+		# start writer (which sleeps on LogQ)
+
+		self.LogQ = Queue.Queue()
+		self.Watchers = LockedList()
+		self.StartWriter()
+
+	def add( self, watcher ):
+		self.Watchers.add( watcher )
+
+	def rem( self, watcher ):
+		self.Watchers.rem( watcher )
+
+	def _open( self ):
+		assert( self.closed )
+		self.closed = 0
+		self.file = open( self.name, self.mode )
+
+	def _close( self ):
+		assert( not self.closed )
+		self.closed = 1
+		self.file.flush()
+		self.file.close()
+
+	def _write( self, str ):
+		""" actually write to logfile """
+		self._open()
+		self.file.write( str )
+		self._close()
+
+	def _ts( self ):
+		"""generate timestamp and datestamp when clock rolls over"""
+		t = time.localtime()
+		ts = "%02d:%02d:%02d " % ( t[3], t[4], t[5] )
+		next_dayt = ( t[0], t[1], t[2], t[8])
+		if self.prev_dayt != next_dayt:
+			self.prev_dayt = next_dayt
+			self.complete = 0	# avoid infinite regress
+			self.LogQ.put( ts		#	self.write( ts
+				+ self.prefix 
+				+ time.asctime( t )
+				+ "\n" )
+		return ts + self.prefix
+
+	def write( self, str ):
+
+		""" write, prefixing each line with a timestamp """
+
+		# if prev line ended with nl then prepend with timestamp
+		
+		if self.complete:
+			str = self._ts() + str
+
+		# queue to writer and see if present line is complete
+		
+		if DEBUG: 
+			sys.__stdout__.write( str )
+		self.LogQ.put( str )
+		self.complete = ( len( str ) > 0 and str[-1] == "\n" )
+
+	def LogWriter( self ):
+
+		""" thread: write log data to file and echo to log clients, if any """
+	
+		while 1:
+			data = self.LogQ.get()
+			self._write( data )		# write to log file
+			self.Watchers.put( data )	# forward to watchers
+
+	def StartWriter( self ):
+	 	thread.start_new_thread( self.LogWriter, ())
+
+
+
+class disabled_LogFile_methods:
+
+	def append( self, str ):
+		"""write, omitting timestamp prefixes"""
+
+		self._open()
+		self._write( str )
+		self._close()
+
+	def writelines( self, list ):
+		"""write multiple lines, omitting timestamp prefixes"""
+
+		self._open()
+		for item in list:
+			self.write( item )
+		self._close()
+
+	def tell( self ):
+		self._open()
+		offset = self.tell()
+		self._close()
+		return offset
+
+	def flush( self ):
+		pass
+
+	def close( self ):
+		self.closed = 1
+		assert( 0 )
+
+
+###############################################
+# listen for connects and dispatch to dedicated thread
+#	to handle log traces
+
+def LogListener( host, port ):
+	s = socket.socket( socket.AF_INET, socket.SOCK_STREAM )
+	s.bind(( host, port ))
+	
+	while 1:
+		s.listen( 5 )
+		conn, addr = s.accept()
+
+		# log watcher adds itself to list of Watchers
+		LogWatcher( conn, addr )
+
+		# no thread -- just keep track of socket
+		# LogWriter calls appropriate LoggerClient entry point
+		# !! this'll have to change if we allow fetching old history
+
+
+###############################################
+# one dedicated watcher for each client connection.
+# only responsibility is to forward log data and
+# delete themselves when socket clogs.
+
+class LogWatcher( object ):
+
+	def __init__( self, sock, addr=None, name="Unk" ):
+		self.sock = sock
+		self.addr = addr
+		self.name = name
+		self.open = 1
+
+		Watchers.add( self )
+		print "Add Logger Client: "
+
+	def put( self, data ):
+		if self.open:
+			try:
+				self.sock.send( data )
+			except:
+				self.close()
+
+	def close( self ):
+		print "Rem Logger Client: "
+		self.open = 0
+		Watchers.rem( self )
+#		self.sock.shutdown( 2 )
+		self.sock.close()
+
+
+###############################################
+# launch threads
+
+def StartLogger( serverhost, logport ):
+ 	thread.start_new_thread( LogListener, ( serverhost, logport ))
+
+
+###############################################
+# unit test
+
+if __name__ == "__main__":
+	import threading
+
+#	log = LogFile( "out", "test1 " )
+	log = LogFile( "/dev/tty", "test1 " )
+	sys.stdout = log
+	N = 10
+
+	class Countdown:
+		def __init__( self, N ):
+			self.K = N
+			self.lock = thread.allocate_lock()
+
+		def zero( self ):
+			self.lock.acquire()
+			self.K -= 1
+			res = self.K
+			self.lock.release()
+			return res == 0
+
+	done = threading.Event()
+
+	def test1():
+		countdown = Countdown( N )
+		done.clear()
+
+		def fn( id ):
+			log.write( "Starting #%d\n" % id )
+			if id & 1:
+				time.sleep( 1 )
+			else:
+				time.sleep( 3 )
+			log.write( "Middle #%d\n" % id )
+			time.sleep( 1 )
+			log.write( "Exiting #%d\n" % id )
+
+			if countdown.zero():
+				done.set()
+
+		log.write( "Begin Test1...\n" )
+		for id in xrange( N ):
+			thread.start_new_thread( fn, ( id, ))
+
+		done.wait()
+		log.write( "Test1 Finished...\n" )
+
+	def test2():
+		countdown = Countdown( N )
+		done.clear()
+		log.prefix = "test2 "
+		
+		def fn( id ):
+			print "Starting #", id
+			if id & 1:
+				time.sleep( 1 )
+			else:
+				time.sleep( 3 )
+			print "Middle #", id
+			time.sleep( 1 )
+			print "Exiting #", id
+
+			if countdown.zero():
+				done.set()
+
+		print "Test2 Begin..."
+		for id in xrange( N ):
+			thread.start_new_thread( fn, ( id, ))
+
+		done.wait()
+		print "Finished Test2..."
+
+	test1()
+	test2()

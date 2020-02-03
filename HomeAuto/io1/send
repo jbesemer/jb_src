@@ -1,0 +1,143 @@
+#!/usr/bin/python2.1
+
+import sys
+import string
+import fcntl, IOCTL
+
+
+##########################
+# command mapping
+#
+
+IA=1
+OA=2
+ID=4
+OD=8
+IO=ID+OD
+AB=16
+
+CmdTab = {
+	"get"		: ( 0,	IO,	"bp",	),	# read an input pin
+	"set"		: ( 1,	IO,	"bpv",	),	# set an output pin
+	"getmask"	: ( 2,	IO,	"bp",	),	# read monitor mask for a pin
+	"setmask"	: ( 3, 	IO,	"bpv",	),	# set monitor mask for a pin
+	"poll"		: ( 4,	ID,	"bpv",	),	# read all input pins & report any changes
+
+	"get_bank"	: ( 5,	IO|AB,	"b",	), 	# read all input pins
+	"set_bank"	: ( 6,	OD|AB,	"bm",	),	# set all output pins to a value
+	"getmask_bank"	: ( 7,	IO,	"b",	),	# read all input pins
+	"setmask_bank"	: ( 8,	IO,	"bm",	),	# set all output pins to a value
+
+	"poll_bank"	: ( 9,	ID|AB,	"b",	), 	# read all input pins on all banks & report any changes
+	"send_bank_result" : ( 10, IO|AB, "b",	),	# send .prev results to host
+	"fetch_bank"	: ( 11,	ID|AB,	"b",	),	# read all input pins
+
+	"clear_bank"	: ( 12,	OD|AB,	"b",	),	# clear all output pins
+	"pulse"		: ( 13,	OD,	"bpvm",	),	# pulse an output pin
+	"toggle"	: ( 14,	OD,	"bpv",	),	# toggle an output pin
+
+	"init"		: ( 15,	IO,     "",	),	# return type of hw interface
+	"getmode"	: ( 16, IO, 	"s",	), 	# return sub mode
+	"get_mode"	: ( 16, IO, 	"s",	), 	# return sub mode
+	"setmode"	: ( 17, IO, 	"sv",	), 	# set sub mode
+	"set_mode"	: ( 17, IO, 	"sv",	), 	# set sub mode
+	"debug"		: ( 18,	IO,	"*",	),	# debug commands
+
+	"ev_add"	: ( 19,	IO,	"",	),	# send 1 byte to channel 0
+	"ev_change"	: ( 20,	IO,	"",	),	# send 1 byte to channel B
+	"ev_list"	: ( 21,	IO,	"",	),	# send 1 byte to channel B
+	"ev_remove"	: ( 22,	IO,	"",	),	# send 1 byte to channel 1
+	"ev_rem"	: ( 22,	IO,	"",	),	# send 1 byte to channel 1
+
+	"send_0"	: ( 23,	IO,	"",	),	# send N bytes to channel 0
+	"send_1"	: ( 24,	IO,	"",	),	# send N bytes to channel 1
+	"send_b"	: ( 25,	IO,	"",	),	# send N bytes to channel B
+	"enable"	: ( 26,	IO,	"",	),	# activate a channel
+	"disable"	: ( 27,	IO,	"",	),	# deactivate a channel
+	"adc_mode"	: ( 28,	IO,	"",	),	# set ADC mode
+	"adc_cal"	: ( 29,	IO,	"",	),	# set ADC calibration
+}
+
+AuxTab = {
+	"ping"	:	0,		# DEBUG_PING
+	"scan"	:	1,		# DEBUG_SCAN
+	"io"	:	2,		# DEBUG_IO
+	"toggle1":	3,
+	"toggle2":	4,
+}
+
+ArgTab = {
+	"b"	:	0,
+	"p"	:	0,
+	"v"	:	0, 
+	"m"	:	0,
+	"c"	:	0,
+	"h"	:	0,
+	"f"	:	0,
+	"r"	:	0,
+	"*"	:	0,
+}
+
+NL = "\n"
+QUOTE = chr( 0x80 )
+Quotables = [ QUOTE, "\n", "\r" ] 	# QUOTE *must* be first
+
+def quote( cmd ):
+	for ch in Quotables:
+		cmd = string.replace( cmd, ch, QUOTE + ch )
+	return cmd
+
+def SerialArgs( args ):
+	return quote( string.join( args, " " ))
+
+SpecialArgProc = { 
+	22 : SerialArgs, 
+	23 : SerialArgs, 
+	24 : SerialArgs
+}
+
+############################
+# serial I/O
+#
+
+
+TTY = "/dev/ttyS1"
+tty = open( TTY, "wb" )
+
+def SendBreak():
+	fcntl.ioctl( tty.fileno(), IOCTL.TCSBRK, 0 )
+	print "sent break"
+
+def send( cmd ):
+	tty.write( "\n" + cmd + "\n" )
+	print cmd
+
+def mapargs( args ):
+	if len( args ) < 1:
+		print "too few args"
+		sys.exit(0)
+
+	if not ( args[0] in CmdTab.keys()):
+		raise "unrecognized command:", args[0]
+
+	tab = CmdTab[ args[0]]
+	cmd = chr( ord( '@' ) + tab[0])
+	# print args[0], cmd
+
+	if tab[0] in SpecialArgProc.keys():
+		cmd += SpecialArgProc[ tab[0]]( args[1:])
+	else:
+		for arg in args[1:]:
+			cmd += arg
+
+	return cmd
+
+def main():
+	if sys.argv[1] == "-break":
+		print "sending break"
+		SendBreak()
+	else:	
+		send( mapargs( sys.argv[1:]))
+
+main()
+

@@ -1,0 +1,12 @@
+
+case `hostname` in
+igor*)	TTY="/dev/ttyS0"	
+	echo IGOR uses $TTY
+	;;
+casc*)	TTY="/dev/ttyS1"	
+	echo CASCADE uses $TTY
+	;;
+esac
+
+stty <$TTY 38400 -echo -onlcr -icrnl -inlcr -ixon -ixoff -icanon -isig
+# stty < $TTY

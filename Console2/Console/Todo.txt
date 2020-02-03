@@ -1,0 +1,23 @@
+- handle maximize
+
+*** done *** - cursor rendering
+
+*** done *** - options dialog
+*** done ***   - tab settings
+
+*** done *** - image handler
+*** done ***   - basic stuff is working
+
+*** done *** - background rendering
+*** done ***   - in process
+*** done ***   - problems with relative backgrounds
+
+*** done *** - non-tabbed windows
+
+*** done *** - console: custom shell
+
+*** done *** - tabs: customize default console settings
+
+*** done *** - appearance: settings for view menu/toolbar/statusbar on startup
+
+- cursors: optimize painting for animated cursors

@@ -1,0 +1,6 @@
+A=/tmp/notes1.tmp
+B=/tmp/notes2.tmp
+
+mv $A $B
+grep NotesFromGroundZero /var/log/httpd/cascade-sys.com-access_log >$A
+diff $B $A

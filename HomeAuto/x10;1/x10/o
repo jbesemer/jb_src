@@ -1,0 +1,36 @@
+[jb@igor x10]$ xp off c1; xp on c1
+03:32:19 send: 
+03:32:22 recv: None
+03:32:22 send: C01
+03:32:22 recv: !C01
+
+03:32:22 send: COF
+03:32:22 recv: 
+tty.getline() returned ''
+03:32:23 send: COF
+03:32:23 recv: !COF
+
+03:32:24 send: 
+03:32:27 recv: None
+03:32:27 send: C01
+03:32:27 recv: !C01
+
+03:32:27 send: CON
+03:32:27 recv: 
+tty.getline() returned ''
+03:32:28 send: CON
+03:32:28 recv: !CON
+
+
+[jb@igor x10]$ x off c1; x on c1
+03:35:55 send: C01
+03:35:56 recv: !C01
+03:35:56 send: COF
+03:35:56 recv: !COF
+03:35:58 send: C01
+03:35:59 recv: !C01
+03:35:59 send: CON
+03:35:59 recv: !CON
+[jb@igor x10]$ 
+
+

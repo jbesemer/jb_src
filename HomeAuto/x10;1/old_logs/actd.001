@@ -1,0 +1,26 @@
+00:51:01	ActD starting
+00:51:01	read up 9 events
+00:00:00	[ skipping event ]
+00:51:01	waiting 05:08:59 until 06:00:00
+06:00:00 performing: wakeup!
+06:00:00	waiting 00:15:00 until 06:15:00
+06:15:00 performing: coffee ON
+06:15:00	waiting 11:45:00 until 18:00:00
+10:00:02	ActD starting
+10:00:02	read up 9 events
+00:00:00	[ skipping event ]
+06:00:00	[ skipping event ]
+06:15:00	[ skipping event ]
+10:00:02	waiting 07:59:58 until 18:00:00
+18:00:00 performing: on lr; di 5 lr
+18:00:00	waiting 00:05:00 until 18:05:00
+18:05:00 performing: blip . . . 
+18:05:00	waiting 00:01:00 until 18:06:00
+18:06:00 performing: b l o p
+18:06:00	waiting 00:24:00 until 18:30:00
+18:30:00 performing: wibble wobble wubble
+18:30:00	waiting 00:15:00 until 18:45:00
+18:45:00 performing: one after 644
+18:45:00	waiting 01:30:00 until 20:15:00
+20:15:00 performing: di 5 lr
+20:15:00	waiting 01:45:00 until 22:00:00

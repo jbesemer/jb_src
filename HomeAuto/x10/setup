@@ -1,0 +1,4 @@
+#! /bin/sh
+#  stty x10 channel for baud, etc.
+
+stty </dev/ttyS1 2400 cs8 cstopb -echo -echoctl -ignbrk -ignpar icrnl -isig -icanon -tostop  

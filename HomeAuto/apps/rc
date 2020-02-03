@@ -1,0 +1,4 @@
+cd /home/jb/apps
+stop sund
+
+python sund.py

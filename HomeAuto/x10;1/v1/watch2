@@ -1,0 +1,24 @@
+#!/usr/bin/perl
+
+sub timestamp
+{
+	my($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime;
+
+	return sprintf( "%02d:%02d:%02d", $hour, $min, $sec );
+}
+
+# echo feedback from x10 channel
+
+	open TTYI, "</dev/ttyS1";
+	open TTYO, ">/dev/ttyS1";
+
+	select( TTYI ); $| = 1;
+	select( TTYO ); $| = 1;
+	select( STDOUT );
+
+	print TTYO "B01\n";
+
+	while(<TTYI>){
+		my( $ts ) = &timestamp;
+		print "$ts $_";
+	}

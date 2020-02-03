@@ -1,0 +1,30 @@
+#!/usr/bin/python2.2
+
+import os, os.path, sys
+import cStringIO
+import mimetools # import rfc822
+import time
+import re
+
+SELF="/home/jb/bin/spambot"
+
+SPAMDIR = "/home/jb/.spam"
+SPAMFILE = SPAMDIR + "/Spam"
+ALLFILE = SPAMDIR + "/All"
+
+
+# header = rfc822.Message( sys.stdin, 0 )
+header = mimetools.Message( sys.stdin, 0 )
+# header.rewindbody()
+body = sys.stdin.read()
+
+fo = open( SPAMFILE, "a" )
+print >>fo, time.strftime( "%m/%d/%Y %H:%M:%S" ), header['from'], len( body ), "bytes", header.gettype(), header.getencoding()
+
+if re.search( "SPAM SPAM",  body ):
+	print >>fo,  "## SPAM ## "
+	fo.close()
+	sys.exit( 0 )
+
+fo.close()
+sys.exit( 1 )

@@ -1,0 +1,27 @@
+group test
+
+# group name and actions
+#
+# < = on rising edge
+# > = on falling edge
+#
+# may be multiple actions
+#
+#	say "laslaskjf"
+#	play "alsdjfasdljf"
+#	show "alskjfds"
+#	run program args...
+#	eval expression
+#
+
+A10 = door 1
+	<show Open
+	>show Closed
+	<say Opened
+	>say Closed
+
+A12 = door 2
+	<show ON
+	>show OFF
+	<play /home/jb/sounds/buzzer.wav
+	>play /home/jb/sounds/sparkle.wav

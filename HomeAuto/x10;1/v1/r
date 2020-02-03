@@ -1,0 +1,5 @@
+echo broken
+for i in $*
+do
+	./x10  `basename $0`$i
+done

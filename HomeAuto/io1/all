@@ -1,0 +1,4 @@
+for x in @ a b c d e f g h i j k l
+do
+	send $* $x
+done

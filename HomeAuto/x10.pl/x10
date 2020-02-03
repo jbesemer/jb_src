@@ -1,0 +1,3 @@
+#!/bin/sh
+cd /home/jb/x10
+./x $*

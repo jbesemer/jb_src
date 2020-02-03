@@ -1,0 +1,70 @@
+#!/usr/bin/python2.2
+
+# WatchInputs
+
+# watch the devices inputs and speak all changes
+
+import sys
+import string
+
+import ioclient
+import soundclient
+
+OnOff = {
+	'0':	" off ",
+	 0 :	" off ",
+	'1':	' on ',
+	 1 :	' on ' }
+
+OpenClosed = {
+	'0'	:	" closed ",
+	'1' :	" opened " }
+
+def WatchInputs():
+
+	io = ioclient.IoClient()
+	io.open()
+	prevPin = None
+
+	ss = soundclient.SoundServerImmed()
+	ss.open()
+
+	if len( sys.argv ) > 1:
+		pins = string.join( sys.argv[1:])
+	else:
+		pins = "A*"
+
+	io.monitor( pins )
+
+	ss.say( "Begin monitoring" )
+
+	while 1:
+		data = io.readline()
+		if not data:
+			exit
+
+		print data
+		msg = data.split()
+		cmd = msg[1]
+		pin = msg[2]
+		val = msg[3]
+
+		if pin[1] == '0':
+			pin = pin[0] + pin[2:]
+
+		if cmd == "CHANGE":
+			if val == '0' and prevPin != pin:
+				ss.say( pin + OnOff[ 0 ])
+
+			elif val == '1':
+				ss.say( pin + OnOff[ 1 ])
+				prevPin = pin
+
+		else:
+			ss.say( "Unknown result: " + data )
+
+	ss.close()
+	io.close()
+
+if __name__ == "__main__":
+	WatchInputs()

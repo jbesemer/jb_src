@@ -1,0 +1,41 @@
+#!/usr/bin/perl
+
+$ARGV[0] || die "usage: url <any http url>\n";
+$ARGV[0] =~ /(\w+):\/\/([^\/:]+)(:\d+)?\/(.*)$/ || die "can't parse argument\n";
+
+$1 eq http || die "can't handle $1, try http\n";
+$them = $2 || die "host name required\n";
+$port = $3 || 80;
+$file = $4 || "/";
+
+$sockaddr = 'S n a4 x8';
+$AF_INET = 2;
+$SOCK_STREAM = 1;
+chop($hostname = `hostname`);
+
+($name, $aliases, $proto) = getprotobyname('tcp');
+print STDERR "Looking up $hostname (us)\n";
+($name, $aliases, $type, $len, $thisaddr) = gethostbyname($hostname);
+print STDERR "Looking up $them\n";
+($name, $aliases, $type, $len, $thataddr) = gethostbyname($them);
+
+$this = pack($sockaddr, $AF_INET, 0,     $thisaddr);
+$that = pack($sockaddr, $AF_INET, $port, $thataddr);
+
+socket (S, $AF_INET, $SOCK_STREAM, $proto) || die "socket: $!";
+bind(S, $this) || die "bind: $!";
+print STDERR "Connecting\n";
+connect(S, $that) || die "connect: $!";
+
+select(S); 
+$| = 1; 
+print S "GET /$file\r\n";
+
+select(STDOUT);
+while (<S>) {
+    $size += length($_);
+    print STDERR "\r$size bytes transfered";
+      print;
+}
+print STDERR "\nDone\n";
+

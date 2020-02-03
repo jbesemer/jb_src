@@ -1,0 +1,8 @@
+PATH=.:bin:/home/jb/bin:/usr/local/bin:/bin:/usr/bin
+export PATH
+
+cd /home/jb/io
+
+stop ioserver
+
+ioserver

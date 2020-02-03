@@ -1,0 +1,2 @@
+send setmode 3 0	# oscope outputs
+send setmode 1 1	# events

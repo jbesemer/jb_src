@@ -1,0 +1,351 @@
+#!/usr/bin/python2.1
+
+from __future__ import nested_scopes
+
+import sys, os, os.path, cgi
+import string, re
+import commands
+import time
+import html
+
+DebugFlag = 0
+
+X10_HOME = "/home/jb/x10"
+X10_ALIASES = os.path.join( X10_HOME, "x10_aliases" )
+X10_CMD = os.path.join( X10_HOME, "x10" )
+X10_CGI = None	# filled in at runtime
+
+REPEAT = "Repeat"
+SIGNAL = "Signal"
+CATEGORY = "Category"
+MANUAL = "Manual"
+HOUSE = "House"
+CODE = "Code"
+
+COMMAND = "Command"
+
+CMD_ON = "On"
+CMD_OFF = "Off"
+CMD_DIM = "Dim"
+CMD_BRI = "Bri"
+
+DEFAULT_REPEAT = '4'
+
+DEFAULT_CONFIG = [
+	"[jb office]",
+	"jb_desk		= c1",
+	"jb_lamp		= c7",
+	"jb_fan			= c8",
+	"[master br]",
+	"master br 1		= d2",
+	"master br 2		= d3",
+	]
+
+REPEATABLE=[ "Dim", "Brighten" ]	# commands which can be repeated
+
+HOUSE_OPTS = [ 
+	"A", "B", "C", "D", "E", "F", "G", "H", 
+	"I", "J", "K", "L", "M", "N", "O", "P" ]
+
+CODE_OPTS = [ 
+	"1", "2", "3", "4", "5", "6", "7", "8", 
+	"9", "10", "11", "12", "13", "14", "15", "16" ]
+
+#############################
+# extensions to HTML lib
+#############################
+
+def manual_selection( man_house, man_code ):
+	return (
+		html.select_list( HOUSE, HOUSE_OPTS, man_house ) 
+		+ html.select_list( CODE, CODE_OPTS, man_code )
+		)
+
+def standard_buttons( name, repeat=DEFAULT_REPEAT ):
+	return ( 
+		"\n          "
+		+ html.input_hidden( CATEGORY, name )
+		+ "\n          "
+		+ html.input_submit( COMMAND, CMD_ON )
+		+ "\n          "
+		+ html.input_submit( COMMAND, CMD_OFF )
+		+ "\n          "
+		+ html.input_submit( COMMAND, CMD_BRI )
+		+ "\n          "
+		+ html.input_submit( COMMAND, CMD_DIM )
+		+ "\n          "
+		+ html.input_text( REPEAT, value=repeat )
+		+ "\n      "
+		)
+
+	#	+ " times" 
+
+def as_tr_head( bgcolor=None ):
+	return (
+		"    <TR"
+		+ html.optArg( "bgcolor", bgcolor )
+		+ ">"
+		)
+
+def print_table( head_rows, body_rows ):
+
+	print "<TABLE>"		#  width=98% rules=all border=2>"
+
+	# heading row
+	for headrows in head_rows:
+		print "  <TR bgcolor=#e0e0e0>"
+		for heading in headrows:
+			print "    <TD>" + heading + "</TD>"
+		print "  </TR>"
+
+	# other rows (actually pairs of rows)
+
+	count = 0
+	bgcolors = [ "#D0FFD0", None ]
+
+	for row in body_rows:
+
+		bgcolor = bgcolors[ count % len( bgcolors )]
+
+		print html.form_head( action=X10_CGI )
+
+		print html.as_TR(
+			"      <TD>" 
+				+ string.join( row[ 0 ], "</TD><TD>" ) 
+				+ "</TD>",
+			bgcolor=bgcolor )
+
+		print html.as_TR(
+			"      <TD colspan=2 align=center>" 
+				+ string.join( row[ 1 ], " " )
+				+ "</TD>",
+			bgcolor=bgcolor )
+
+
+		print "  </form>"
+
+		count += 1
+
+	print "</TABLE>"
+
+########################
+# current control configuration
+########################
+
+class X10Controls:
+	def __init__( self, filename=None, config=None ):
+
+		if filename:
+			self.read_config_file( filename )
+		elif config:
+			self.set_config( config )
+		else:
+			self.set_config( DEFAULT_CONFIG )
+
+		self.rep = DEFAULT_REPEAT
+
+	def read_config_file( self, filename ):
+
+		file = open( filename, 'r' )
+		self.set_config( file.readlines())
+		file.close()
+
+	def set_config( self, lines ):
+
+		# config is a dict of dicts
+		self.config = {}
+		self.category = ""
+		for line in lines:
+			line = line.strip()
+
+			line = re.sub( "#.*", "", line )
+
+			if len( line ) == 0:
+				continue
+
+			if line[0] == '[':
+				category = line[1:len(line)-1]
+				category = category.strip()
+				continue
+
+			if '=' in line:
+				(lhs, rhs) = string.split( line, "=", 1 )
+				lhs = lhs.strip()
+				rhs = rhs.strip()
+				self.add_def( category, lhs, rhs )
+				continue
+
+			print "Bad Config Line:", line
+	
+	def add_def( self, cat, lhs, rhs ):
+		if cat not in self.config.keys():
+			self.config[ cat ] = {}
+		self.config[ cat ][ lhs ] = rhs
+
+	def GetDefaults( self, form ):
+		"set option defaults based on previous inputs, if any"
+		# now there's only 0 or 1 previous selection
+		if SIGNAL in form.keys():
+			self.prev_signal = form[ SIGNAL ].value
+		else:
+			self.prev_signal = None
+		self.rep = getval( form, REPEAT, self.rep )
+
+	def TableHead( self ):
+		return [["Name","Definition"], 
+			[ "State", "Actions"]]
+
+	def asTable( self ):
+		table = []
+		for cat, dict in self.config.items():
+			opts = []
+			default_opt = None
+			for lhs, rhs in dict.items():
+				label = lhs + " = " + rhs
+				opts.append( label )
+				if label == self.prev_signal:
+					default_opt = label
+			table += [[[ cat, 
+					html.select_list( 
+						SIGNAL, 
+						opts, 
+						default_opt )],
+				   [ standard_buttons( 	
+					cat, 
+					self.rep )]]]
+
+		return table
+
+class X10ManControls( X10Controls ):
+	def __init__( self ):
+		self.man_house = 'A'
+		self.man_code = '1'
+		self.rep = DEFAULT_REPEAT
+
+	def GetDefaults( self, form ):
+
+		self.man_house = getval( form, HOUSE, 'A' )
+		self.man_code = getval( form, CODE, '1' )
+		self.man_rep = getval( form, REPEAT, '4' )
+
+	def GetSignal( self ):
+		return self.man_house + self.man_code
+
+	def asTable( self ):
+		return [[[ "Manual selection", 
+				manual_selection( 
+					self.man_house, 	
+					self.man_code )],
+			[ standard_buttons( 
+				MANUAL, 
+				self.rep )]]]
+
+
+def getval( form, key, dflt=None ):
+	if key in form.keys():
+		return form[ key ].value
+	else:
+		return dflt
+
+##################
+# main program
+##################
+
+# pts( "start" )
+
+# start with html prefix, to ensure debug and 
+# exception output will be visible
+
+html.print_head( "JB's X10 interface" )
+
+# try the normal actions
+
+try:
+	# create the control objects
+
+	controls = X10Controls( X10_ALIASES )
+	man_controls = X10ManControls()
+
+	# display the top of form
+
+	print "<H1>JB's X10 interface</H1>"
+	print "<P>"
+	print "Press buttons below to control X10s."
+	print "<P>"
+	print "<pre>"
+
+	# parse input
+
+	Form = cgi.FieldStorage()
+
+	X10_CGI = os.environ[ "SCRIPT_NAME" ]
+
+	controls.GetDefaults( Form )
+	man_controls.GetDefaults( Form )
+
+	print "</pre>"
+# 	pts( "parse" )
+
+	print_table( 
+		controls.TableHead(),
+		controls.asTable() 
+			+ man_controls.asTable())
+
+	print "<P>Press any above buttons to send X10 commands"
+	html.print_trailer()
+
+#	pts( "print" )
+
+	# process commands
+
+	if CATEGORY in Form.keys():
+		category = Form[ CATEGORY ].value
+
+		if SIGNAL in Form.keys():
+			target = Form[ SIGNAL ].value
+		else:
+			target = man_controls.GetSignal()
+		target = re.sub( "=.*", "", target ).strip()
+
+		cmd = Form[ COMMAND ].value
+		rep = Form[ REPEAT ].value
+		if cmd in REPEATABLE:
+			cmd = cmd + " " + rep
+
+		cmd = string.join([ X10_CMD, cmd, target ], " " )
+
+		print "<hr><H3>Executing: </H3><pre>"
+		print cmd, "</pre><P>"
+
+		print "<H3>Results:</H3>"
+		print "<pre>"
+		# print "run command:", cmd
+		print commands.getoutput( cmd )
+		print "</pre>"
+
+#	pts( "done" )
+
+# if something goes wrong, display the traceback
+
+except:
+	import traceback
+	print "<hr><H1>Exception raised:</H1>\n<pre>\n"
+	sys.stderr = sys.stdout
+	traceback.print_exc()
+	print "\n</pre>"
+
+# echo cgi inputs if debug is on 
+
+if DebugFlag:
+	print "<hr><H2>Debug Output:</H2><P>"
+	cgi.print_form( Form )
+	cgi.print_environ( os.environ )
+
+
+def pts( msg ):
+	def ts():
+		return time.strftime( "%H:%M:%S", time.localtime())
+	print "<P><i>", ts(), msg, "</i><P>"
+
+pts( "exit" )
+

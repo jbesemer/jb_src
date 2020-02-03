@@ -1,0 +1,8 @@
+PIDFILE=$HOME/bin/pids
+
+for i in $* 
+do
+	PID=`cat $PIDFILE/$i`
+	echo $i: $PID
+	kill $PID
+done

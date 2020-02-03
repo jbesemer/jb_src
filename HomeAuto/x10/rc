@@ -1,0 +1,5 @@
+export PATH='.:/home/jb/bin:/usr/local/bin:/bin:/usr/bin'
+cd /home/jb/x10
+stop x10server
+./setup
+./x10server

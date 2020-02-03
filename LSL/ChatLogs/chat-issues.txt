@@ -1,0 +1,65 @@
+IMPORTING CHAT
+
+	1024 max width => TEXT = 2+data
+
+	 4 byte id
+	 4 byte flags
+	 2 byte text len
+	--
+	10 bytes overhead
+
+	19..20 typical timestamp prefix
+
+	9..10 byte savings! per record
+
+	but then the cost of indices
+
+Special treatment of...
+
+	... is Online
+	... is Offline
+	You decline...
+	Connecting to in-world Voice Chat...
+	Connected
+	Disconnected from in-world Voice Chat
+	A group member named... gave you...
+
+	Teleport completed
+	Insufficient permissions...
+	The system is currently unable to process your request...
+
+	selected agents
+		ChA
+		Friend Finder
+		Xcite
+		SecMon?
+		RelayNexus
+		*TorridWear*...
+		Player ?.?
+
+	Unicode (or whatever) encodings
+	text image displays
+
+	<somebody> <does something>  ( no ":"  after av name)
+
+	text lines with embedded "\n"
+
+	"Shahista spanked Kell's ass"
+	Xa Marlin smiles, "Hi girls : )"
+	Free Radar HUD v1.1 by Crystal Gadgets
+
+	EdDereDdE Laval shouts: find reves
+
+	[2009/03/11 19:26]  Noisey Lane gave you proKIT Security HUD V4.0.
+	[2009/03/11 19:27]  Melonie Romano gave you Melonie's Update March 2009.
+
+
+	[2009/03/15 21:49]  Freestar Tammas: I have no idea
+	[2009/03/15 21:49]  Freestar Tammas: I"im not adding either
+	[2009/03/15 21:49]  Hiroshi Sakai: YEAY FREESTAR!!
+	[2009/03/15 21:50]  Crystal Morrison: [21:49] Freestar Tammas: I have no idea
+	[21:49] Freestar Tammas: I"im not adding either
+	[2009/03/15 21:50]  Crystal Morrison shouts: [21:49] Freestar Tammas: I have no idea
+	[21:49] Freestar Tammas: I"im not adding either
+
+

@@ -1,0 +1,29 @@
+#! /usr/local/bin/python2.2
+
+import os, sys, re
+import popen2
+
+
+names = sys.argv[1:]
+
+if names:
+	rcv, snd = popen2.popen2( "ps -ax" )
+	lines = rcv.readlines()
+	patt = "|".join( names )
+	res = []
+	pids = []
+	for line in lines:
+		if re.search( patt, line ):
+			res.append( line )
+			field = line.split()
+			pids.append( field[0])
+	
+	print "results:"
+	for line in res:
+		print line,
+
+	
+	if pids:
+		kill = "kill -9 " + " ".join( pids )
+		print kill
+		os.system( kill )

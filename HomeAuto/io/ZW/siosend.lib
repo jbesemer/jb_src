@@ -1,0 +1,481 @@
+
+///////////////////////////////////////
+// Serial Comm
+///////////////////////////////////////
+
+// Sends are TO the host
+// Reads are FROM the host
+
+
+/*** BeginHeader */
+
+#use aasc.lib
+#use aascscc.lib
+#use aascz1.lib
+
+// serial defines
+
+#define IOSIZEA 1024		// A channel buffers
+#define IOSIZE 64			// other channel buffers
+
+#define MAXCHAN 3			// max 'other' channels
+
+#define CHAN0	0
+#define CHAN1	1
+#define CHANB	2
+#define CHANX	3	// reserved
+
+#define	FLAG_CRTS	1
+#define FLAG_DATA8	2
+#define FLAG_STOP2	4
+#define FLAG_EVENP	8
+#define FLAG_ODDP	16
+
+#define	MAX_FLAGS	(	FLAG_DATA8		\
+					|	FLAG_STOP2		\
+					|	FLAG_EVENP		\
+					|	FLAG_ODDP		\
+					)
+
+
+
+
+#define MODE 4
+#define BAUD ( 19200 / 1200 * 2 )
+#define NOMODEM 0
+#define NOECHO 0
+
+#define SCC_9600  ( SCC_1200 *  8 )
+#define SCC_19200 ( SCC_1200 * 16 )
+#define SCC_38400 ( SCC_1200 * 32 )
+#define SCC_57600 ( SCC_1200 * 48 )
+#define SCC_115200 ( SCC_1200 * 96 )
+
+#define ASC_19200 ( ASCI_PARAM_1200 * 16 )
+
+#define CHAN_A_SPEED SCC_38400 // SCC_115200 // SCC_57600 // SCC_19200 // 
+
+#define ACTIVATE_Z0	0
+
+#define STANDOPT_SCC	( SCC_1STOP | SCC_NOPARITY | SCC_8DATA )
+
+#define STANDOPT_ASC	( ASCI_PARAM_1STOP				\
+						| ASCI_PARAM_NOPARITY			\
+						| ASCI_PARAM_8D )
+
+/*** EndHeader */
+
+/*** BeginHeader recvch, sendn, SerialInit, send, sendch, sendnl, ActiveChan */
+
+// externs
+
+extern int recvch();
+extern void sendn( char* buf, int len );
+extern XMEM void SerialInit();
+extern void send( char* buf );
+extern void sendch( char ch );
+extern void sendnl();
+
+extern int breakCounter;
+
+extern CHANNEL ActiveChan[ MAXCHAN ];
+
+/*** EndHeader */
+
+
+// static data
+
+char ibufA[ IOSIZE ];		// probably should increase input buffer size
+char obufA[ IOSIZEA ];
+CHANNEL Chan_A;
+
+char ibufs[ MAXCHAN ][ IOSIZE ];
+char obufs[ MAXCHAN ][ IOSIZE ];
+
+CHANNEL ActiveChan[ MAXCHAN ];
+
+// get a char
+
+int recvch( void )
+{
+	unsigned char ch;
+
+	if( aascReadChar( Chan_A, &ch ) == 1 )
+		return (int)ch;
+	else
+		return -1;
+}
+
+
+// send a string to the host
+
+void sendn( char* buf, int len )
+{
+	int count;
+	while( len > 0 ){
+		count = aascWriteBlk( Chan_A, buf, len, 0 );
+		buf += count;
+		len -= count;
+	}
+}
+
+
+void send( char* buf )
+{
+	sendn( buf, strlen( buf ));
+}
+
+// send a char
+
+void sendch( char ch )
+{
+	while( aascWriteChar( Chan_A, ch ) == 0 ){
+		continue;
+	}
+}
+
+void sendnl()
+{
+	sendch( '\n' );
+}
+
+
+int breakCounter;
+
+interrupt void ChanA_BreakFn()
+{
+	++breakCounter;
+}
+
+// initialization
+
+XMEM void 
+SerialInit()
+{
+	byte i;
+
+	for( i=0; i < MAXCHAN; i++ )
+		ActiveChan[ i ] = NULL;
+
+	Chan_A = aascOpen( 
+		DEV_SCC, 
+		1, 
+		SCC_A | STANDOPT_SCC | CHAN_A_SPEED,
+		ChanA_BreakFn );
+
+	if( Chan_A == NULL ){
+		printf( "Cannot open ChanA\n" );
+		return;
+	}
+
+	aascSetReadBuf(  Chan_A, ibufA, sizeof( ibufA ));
+	aascSetWriteBuf( Chan_A, obufA, sizeof( obufA ));
+
+//	aascRxSwitch( Chan_A, 1 );
+//	aascTxSwitch( Chan_A, 1 );
+
+	send( "# Serial initialized\n" );
+}
+
+
+/*** BeginHeader sendError */
+	extern xmem void sendError( byte code, byte subcode );
+
+///////////////////////////////////////
+// Error codes
+///////////////////////////////////////
+
+
+#define NO_ERROR 			0		// SUCCESS, not an error
+#define ERR_NONX_PIN		1		// addressed pin does not exist
+#define ERR_NONX_BANK		2		// addressed bank does not exist
+#define ERR_ILLEGAL_OP		3		// operation is not supported for this bank/pin
+#define ERR_HW_FAIL			4		// HW function reported a problem
+#define	ERR_MISSING_ARG		5		// not enough argument bytes for given command
+#define ERR_INPUTOVERFLOW	6		// imput command too long
+#define ERR_INACTIVE		7		// attempted send on inactive channel
+#define ERR_CANTOPEN		8		// cannot activate port
+#define ERR_NONX_ARGSIG		9		// non-existant arg sig (internal error)
+#define ERR_EXTRA_ARGS		10		// too many args specified
+#define ERR_NONX_CHAN		11		// non-existant channel
+#define ERR_NONX_FLAGS		12		// illegal flags
+#define ERR_NON_BANKABLE	13		// command cannot handle all-banks
+#define ERR_NONX_EVENT		14		// non existant event
+#define ERR_NONX_MODE		15		// non existant mode
+#define ERR_CANT_EVENT		16		// cannot create event (table full)
+
+
+/*** EndHeader */
+
+// format an error notification and send it to the host
+
+xmem void 
+sendError( byte code, byte subcode )
+{
+	sendch( '?' );
+	sendch( aHexNibble( code ));
+	sendch( aHexNibble( subcode ));
+	sendch( '\n' );
+
+//	printf( "sendError( %d / %d )\n", aHexNibble( code ), aHexNibble( subcode ));
+}
+
+
+/*** BeginHeader aHexNibble, sendAHexNib, sendAHexB, sendAHexW, sendAHex */
+
+	extern char aHexNibble( byte x );
+	extern void sendAHexNib( byte x );
+	extern void sendAHexB( byte x );
+	extern void sendAHexW( word x );
+	extern void sendAHex( byte* x, byte n );
+
+/*** EndHeader */
+
+
+// A-hex output
+//
+// a-hex uses the consecutive letters @abcdefghijklmno
+// This is a little harder for humans to read but its
+// easier for computers to process.
+
+char aHexNibble( byte x )
+{
+	return '@' + ( x & 0xF );
+}
+
+void sendAHexNib( byte x )
+{
+	sendch( aHexNibble( x ));
+}
+
+void sendAHexB( byte x )
+{
+	sendAHexNib( x >> 4 );
+	sendAHexNib( x );
+}
+
+void sendAHexW( word x )
+{
+	sendAHexB( x >> 8 );
+	sendAHexB( x );
+}
+
+void sendAHex( byte* x, byte n )
+{
+	int i;
+	for( i=0; i<n; i++ )
+		sendAHexB( *x++ );
+}
+
+/*** BeginHeader sendResult */
+	extern void sendResult( byte id, byte pin, byte value );
+/*** EndHeader */
+
+void sendResult( byte id, byte pin, byte value )
+{
+	sendch( id );
+	sendch( aHexNibble( pin ));
+	sendch( '=' );
+	sendch( aHexNibble( value ));
+	sendch( '\n' );
+
+#if 0
+	printf( "Result %c.%d: %d\n", id, pin, value );
+#endif
+}
+
+/*** BeginHeader sendBankResult */
+	extern void sendBankResult( byte id, word value );
+/*** EndHeader */
+
+void sendBankResult( byte id, word value )
+{
+	sendch( id );
+	sendch( '*' );
+	send( "=" );
+	sendAHexW( value );
+	sendch( '\n' );
+}
+
+/*** BeginHeader sendMode */
+	extern void sendMode( byte id, word value );
+/*** EndHeader */
+
+void sendMode( byte id, word value )
+{
+	send( "MODE " );
+	sendch( id + 'A' );
+	sendch( ' ' );
+	sendAHexW( value );
+	sendch( '\n' );
+}
+
+/*** BeginHeader sendMaskResult */
+	extern void sendMaskResult( byte id, byte pin, byte value );
+/*** EndHeader */
+
+void sendMaskResult( byte id, byte pin, byte value )
+{
+	send( "MASK " );
+	sendch( id );
+	sendch( aHexNibble( pin ));
+	sendch( aHexNibble( value ));
+	sendch( '\n' );
+}
+
+
+/*** BeginHeader sendMaskBankResu */
+	extern void sendMaskBankResu( byte id, word value );
+/*** EndHeader */
+
+void sendMaskBankResu( byte id, word value )
+{
+	send( "MASK " );
+	sendch( id );
+	sendch( '*' );
+	sendAHexW( value );
+	sendch( '\n' );
+}
+
+
+/*** BeginHeader send1 */
+	extern void send1( byte code, byte arg );
+/*** EndHeader */
+
+void send1( byte code, byte arg )
+{
+	sendch( code );
+	sendch( arg );
+	sendch( '\n' );
+}
+
+
+
+/*** BeginHeader sendMessage */
+	extern void sendMessage( byte code, char* args );
+/*** EndHeader */
+
+void sendMessage( byte code, char* args )
+{
+}
+
+
+// activate and deactivate a serial channel
+
+/*** BeginHeader Activate */
+	extern XMEM int Activate( int chan, int speed, int flags );
+/*** EndHeader */
+
+XMEM int 
+Activate( int chan, int speed, int flags )
+{
+	int devType[ 3 ] = { DEV_Z0, DEV_Z1, DEV_SCC };
+	long aascFlags;
+	CHANNEL Chan;
+
+	if( chan < 0 || chan >= MAXCHAN ){
+		sendError( ERR_NONX_CHAN, chan );		
+		return 1;
+	}
+
+	Chan = ActiveChan[ chan ];
+	aascFlags= 0;
+
+	if( Chan != NULL ){
+		aascClose( Chan );
+		ActiveChan[ chan ] = NULL;
+	}
+
+	// assemble args (working around yet another Zworld snafu)
+
+	if( chan < CHANB ){		// ASCI lib
+		aascFlags
+			=	(( flags & FLAG_STOP2 ) 
+					? ASCI_PARAM_2STOP
+					: ASCI_PARAM_1STOP )
+			|	(( flags & FLAG_DATA8 )
+					? ASCI_PARAM_8D
+					: ASCI_PARAM_7D )
+			|	(( flags & FLAG_EVENP )
+					? ASCI_PARAM_EPARITY
+					: ASCI_PARAM_NOPARITY )
+			|	(( flags & FLAG_ODDP )
+					? ASCI_PARAM_OPARITY
+					: ASCI_PARAM_NOPARITY )
+			|	ASCI_PARAM_1200 * speed;
+
+	} else {				// SCC lib
+
+		aascFlags
+			=	SCC_B
+			|	(( flags & FLAG_STOP2 ) 
+					? SCC_2STOP
+					: SCC_1STOP )
+			|	(( flags & FLAG_DATA8 )
+					? SCC_8DATA
+					: SCC_7DATA )
+			|	(( flags & FLAG_EVENP )
+					? (( flags & FLAG_ODDP )
+						? SCC_OPARITY | SCC_EPARITY
+						: SCC_EPARITY )
+					: (( flags & FLAG_ODDP )
+						? SCC_OPARITY
+						: SCC_NOPARITY ))
+			|	SCC_1200 * speed;
+	}
+
+	// now actually try the open
+
+	Chan = aascOpen( 
+		devType[ chan ], 
+		(( flags & FLAG_CRTS ) 
+			? 1 
+			: 0 ), 
+		aascFlags,
+		NULL );
+
+	if( Chan == NULL ){
+		sendError( ERR_CANTOPEN, (byte)chan );
+		return 1;
+	}
+
+	ActiveChan[ chan ] = Chan;
+	 
+	aascSetReadBuf(  Chan, ibufs[ chan ], IOSIZE );
+	aascSetWriteBuf( Chan, ibufs[ chan ], IOSIZE );
+
+	sendError( NO_ERROR, chan );	// this op deserves a confirmation
+	return 0;
+}
+
+
+
+/*** BeginHeader Deactivate */
+	extern XMEM int Deactivate( int chan );
+/*** EndHeader */
+
+XMEM int
+Deactivate( int chan )
+{
+	CHANNEL ch;
+
+	if( chan < 0 || chan >= MAXCHAN ){
+		sendError( ERR_NONX_CHAN, chan );		
+		return 1;
+	}
+
+	ch = ActiveChan[ chan ];
+	if( ch != NULL ){
+		ActiveChan[ chan ] = NULL;
+		aascClose( ch );
+		return 0;
+	}
+
+	return 1;
+}
+
+
+
+
+
+

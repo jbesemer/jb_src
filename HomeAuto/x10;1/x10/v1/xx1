@@ -1,0 +1,262 @@
+#!/usr/bin/perl
+
+%command_synonyms = ( 
+	"alloff",	"A0", 
+	"lightson",	"L1", 
+	"lightsoff",	"L0", 
+	"lights1",	"L1", 
+	"lights0",	"L0" );
+
+sub normalize_command
+{
+	my( $cmd ) = @_;
+	$cmd = uc( $cmd );
+
+	$cmd = $command_synonyms{ $cmd } if( exists $command_synonyms{ $cmd });
+
+	return substr( $cmd, 0, 2 );
+}
+
+sub normalize_address
+{
+	my( $addr ) = @_;
+	my( $house, $unit );
+
+	$house = uc( substr( $addr, 0, 1 ));
+	$unit = substr( $addr, 1 );
+
+#	print "normalize: $addr -> $house, $unit\n";
+
+	return sprintf( "%s%02d", $house, $unit ) 
+		if( $house =~ /[ABCDEFGHIJKLMNOP]/);
+	
+	print "Warning: unable to normalize illegal address: $addr\n";
+	return "";
+}
+
+$alias_file = "x10_aliases";
+
+sub load_address_aliases
+{
+	my( $i, $name, $alias );
+
+	if( open( ALI, $alias_file )){
+		while( <ALI> ){
+			chomp;
+			s/#.*//;
+			s/\/\/.*//;
+			s/[ \t]+/ /g;
+			$i = index $_, "=";
+			if( $i >= 0 ){
+				$name = trim( substr( $_, 0, $i - 1 ));
+				$alias = trim( substr( $_, $i + 1 ));
+				$address_alias{ lc( $name )} = lc( $alias );
+#				print "alias \"$name\" = \"$alias\"\n";
+			}
+		}
+		close ALI;
+	} else {
+		print "Warning: cannot open address alias file: $alias_file\n";
+	}
+}
+
+sub trim
+{
+	local( $s ) = @_;
+	$s =~ s/^[ \t\r\n]+//;
+	$s =~ s/[ \t\r\n]+$//;
+	return $s;
+}
+
+sub process_arg_list
+{
+	my( $arg );
+
+	foreach $arg (@_){
+#		print "foreach \"$arg\"\n";
+		&process_arg( $arg );
+	}
+}
+
+sub process_arg
+{
+	my( $arg ) = @_;
+	$arg = lc( $arg );
+
+	if( $arg =~ /^[0-9]+$/ ){
+		if( $command eq "DI" || $command eq "BR" ){
+			send_command( sprintf( "R%02d", $arg ));
+			return;
+		}
+		print "Warning: repeat count ignored\n";
+		return;
+	}
+
+	if( exists $address_alias{ $arg }){
+		my( @list ) = split( /[ \t]+/, $address_alias{ $arg });
+		&process_arg_list( @list );
+	} else {
+		# print "$command $arg\n";
+		&process_command( $command, $arg );
+	}
+}
+
+sub process_command
+{
+	my( $cmd, $addr ) = @_;
+	my( $house, $unit );
+
+	$addr = &normalize_address( $addr );
+
+	return if( $addr eq "" );
+
+	$house = substr( $addr, 0, 1 );
+
+	send_command( $addr );
+	send_command( $house . $cmd ); 
+}
+
+# send a command and retry until a proper reply is received
+
+sub send_command
+{
+	my( $cmd ) = @_;
+	my( $maxRetries ) = 6;
+	my( $res );
+	my( $ts );
+
+	while( $maxRetries-- > 0 ){
+
+		# send the command
+
+		$ts = &timestamp;
+		print "$ts send: $cmd\n";
+		print TTYO "$cmd\r";
+
+		# check the response
+
+		$res = &get_tty2;
+		$ts = &timestamp;
+
+		if( $res =~ /^[ \t]*$/ || $res eq '' ){
+			$res = '"' . $res . '"';
+		} 
+
+		if( substr( $res, 0, 1 )  eq "?" ){
+			print "$ts recv: $res -- ERROR returned from X10\n";
+			return;
+		}
+
+		print "$ts recv: $res\n";
+
+		if( $res eq ( "!" . $cmd ) || $res eq ( ">" . $cmd )){
+			return;
+		}
+
+	}
+
+	print "\nRetry count exceeded\n";
+}
+
+# tty parameters
+
+$tty = "/dev/ttyS1";
+$stty_flags = "2400 cs8 cstopb -echo -echoctl -ignbrk -ignpar icrnl -isig -icanon -tostop";
+
+# wait for tty input
+
+sub wait_tty
+{
+	my( $nfound, $rin, $rout, $ein, $eout );
+	my( $replyTimeout ) = 0.40;
+
+	$rin = '';
+	vec( $rin, fileno( TTYI ), 1 ) = 1;
+	$ein = $rin;
+
+	$nfound = select( $rout=$rin, undef, $eout=$ein, $replyTimeout );
+
+	$ts = &timestamp;
+	print "$ts select: failed \n" if( $nfound < 0 );
+	print "$ts select: timed-out \n" if( $nfound == 0 );
+
+	return $nfound;
+}
+
+sub get_tty
+{
+	my( $n, $res );
+	$res = "";
+
+	$n = sysread TTYI, $res, 1;
+
+	print "hoomba\n" if( $n == 0 && $res != "" );
+
+	return $res;
+}
+
+sub get_tty2
+{
+	my( $n, $res, $ch );
+	$res = "";
+	$ch = "";
+
+	for( $i=0; $i<$NRetries; $i++ ){
+		while( wait_tty() == 1 ){
+			$res = $res . $ch;
+			$n = sysread TTYI, $ch, 1;
+			return $res if( $ch != "\r" );
+		}
+	}
+
+	return $res;
+}
+
+
+sub open_ttys
+{
+	# set proper speed, etc.
+
+	if( 0 ){
+		my( $rv );
+		$rv = system( "stty <" . $tty . " " . $stty_flags );
+		if(( $rv >> 8 ) != 0 ){
+			print "warning: unable to stty $tty\n";
+		}
+	}
+
+	# actually open the device
+
+	open TTYI, ( "<" . $tty ) || die "cannot open $tty for input";
+	open TTYO, ( ">" . $tty ) || die "cannot open $tty for output";
+
+	# turn off buffering ...
+
+	select( TTYO );	$| = 1; 
+	select( TTYI );	$| = 1; 
+	select( STDOUT );
+
+#	send_command( "" );
+}
+
+sub timestamp
+{
+	my($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime;
+
+	return sprintf( "%02d:%02d:%02d", $hour, $min, $sec );
+}
+
+# main program
+
+{
+	&load_address_aliases;
+
+	$command = &normalize_command( shift @ARGV ); 
+
+	&open_ttys;
+
+#	send_command "";
+
+	process_arg_list( @ARGV );
+}
+
