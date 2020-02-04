@@ -153,11 +153,9 @@ if __name__ == "__main__":
 	INDENT = "    "
 	
 	if 0:
-		print "People.enums:", People.enums
-
-		print SQLInsert( "people", **People )
-
-		print People.AsSQLInsert()
+		print ("People.enums:", People.enums)
+		print (SQLInsert( "people", **People ))
+		print (People.AsSQLInsert())
 
 		p = People( Name="Fred Head")
 		p.idPerson=33
@@ -170,7 +168,7 @@ if __name__ == "__main__":
 		else:
 			raise Error
 		
-		print SQLInsert( "people", **p )
+		print (SQLInsert( "people", **p ))
 
 
 	
@@ -183,41 +181,41 @@ if __name__ == "__main__":
 				n = int( sys.argv[ 1 ])
 			except TypeError:
 				n = 22
-				print "Substituting", n
+				print ("Substituting", n)
 			people = GetPersonByID( n ).GetData()
 		else:
 			people = GetPeopleByName( " ".join( sys.argv[ 1 : ])).GetData()
 
 		if len( people ) > 1:
-			print "People:"
+			print ("People:")
 			for pp in people:
-				print pp
+				print (pp)
 
 		else:
 			person = people[ 0 ]
 			parents, unions = GetRelated( person[ "idPerson" ])
-			print "Person:"
-			print INDENT, person[ "name" ], person[ "sex" ], "(", person[ "idPerson" ], ")"
+			print ("Person:")
+			print (INDENT, person[ "name" ], person[ "sex" ], "(", person[ "idPerson" ], ")")
 			
-			print INDENT, "Born:", person[ "BirthDate" ], person[ "BirthPlace" ]
+			print (INDENT, "Born:", person[ "BirthDate" ], person[ "BirthPlace" ])
 			if person[ "DeathDate" ]:
-				print INDENT, "Died:", person[ "DeathDate" ], person[ "DeathPlace" ]
+				print (INDENT, "Died:", person[ "DeathDate" ], person[ "DeathPlace" ])
 			
-			print "Parents:"
+			print ("Parents:")
 			for parent in parents.GetData():
-				print INDENT, parent[ "name" ]
+				print (INDENT, parent[ "name" ])
 			
-			print "Unions:"
+			print ("Unions:")
 			for union in unions.GetData():
 				if union:
-					print INDENT, 
+					print (INDENT, end='')
 					if union[ "Date" ]:
-						print union[ "Date" ],
-					print "Married:", union[ "name" ]
+						print (union[ "Date" ], end='')
+					print ("Married:", union[ "name" ])
 					if union[ "Location" ]:
-						print INDENT, union[ "Location" ]
+						print (INDENT, union[ "Location" ])
 					children =  GetOffspringByUnionID( union[ 10 ]).GetData()
 					if children:
-						print INDENT, "Children with", union[ "name" ] + ":"
+						print (INDENT, "Children with", union[ "name" ] + ":")
 						for child in children:
-							print INDENT*2, child[ "name" ], child[ "BirthDate" ], child[ "BirthPlace" ]
+							print (INDENT*2, child[ "name" ], child[ "BirthDate" ], child[ "BirthPlace" ])

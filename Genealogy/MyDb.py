@@ -19,7 +19,7 @@ except KeyError:
 try:
 	Db = MySQLdb.connect( db="geanie", user=USERNAME, passwd=PASSWORD )
 except:
-	print "Internal error: unable to open database, possible bad USERNAME or PASSWORD?"
+	print ("Internal error: unable to open database, possible bad USERNAME or PASSWORD?")
 	
 	
 class DbQuery( object ):
@@ -36,8 +36,8 @@ class DbQuery( object ):
 		try:
 			self.count = self.Cur.execute( self.query )
 			self.error = False
-		except MySQLdb.IntegrityError, err:
-			print >>sys.stderr, "Db Error:", err
+		except MySQLdb.IntegrityError as err:
+			print ("Db Error:", err, file=sys.stderr)
 			self.error = True
 			self.count = 0
 
@@ -181,7 +181,7 @@ class DbTableRow( dict ):
 		new = DbTableRow( self.tableName, self.GetKeys(), self.GetCols())
 		new.__dict__[ "enums" ] = self.enums
 		for key,val in dict.items() + kw.items():
-			#print "Updating new:", key, val
+			#print ("Updating new:", key, val)
 			new.__setattr__( key, val )
 		return new
 	
@@ -248,7 +248,7 @@ def SQLUpdate( query ):
 
 if __name__ == "__main__":
 	if 0:
-		print SQLInsert( "people", idPerson=5, name="George",sex="M", Birthplace="S. bend", idParents=0)
+		print (SQLInsert( "people", idPerson=5, name="George",sex="M", Birthplace="S. bend", idParents=0))
 		
 		
 	

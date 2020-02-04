@@ -66,7 +66,7 @@ class SexByNameMap( dict ):
 	def Load( self, filename ):
 		global Unk, Female, Male
 		
-		for line in file( filename ):
+		for line in open( filename ):
 			if line.strip():		# ignore blanks
 				if line[0] == "\t":
 					if line[1] == "\t":
@@ -123,7 +123,7 @@ def InferSexFromUnion( union ):
 	if union.a.sex and union.b.sex:
 		# both have sex, nothing to infer
 		if union.a.sex == union.b.sex and REPORT_SAME_SEX_UNIONS:
-			print "# Warning: possible homosexual partnership:", union.a, "AND", union.b
+			print ("# Warning: possible homosexual partnership:", union.a, "AND", union.b)
 		return
 		
 	if union.a.sex and not union.b.sex:
@@ -142,9 +142,9 @@ def InferSexFromTitle( person, title ):
 	if Male.GetTitle().lower() in title.lower():
 		person.sex = Male
 		if REPORT_INFERENCE_FROM_TITLE:
-			print "Infer Male for", person
+			print ("Infer Male for", person)
 
 	elif Female.GetTitle().lower() in title.lower():
 		person.sex = Female
 		if REPORT_INFERENCE_FROM_TITLE:
-			print "Infer Male for", person
+			print ("Infer Male for", person)

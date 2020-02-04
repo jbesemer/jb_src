@@ -1,0 +1,21 @@
+CVS
+*.o
+*.cof
+*.ptv
+*.rel
+*.map
+*.err
+*.out
+*.go
+*.xarg
+SARA
+Build
+*~
+*.tmp
+.#*
+TempFiles
+*_Output
+lock all files.py
+unlock all files.py
+*.d
+*.pyc

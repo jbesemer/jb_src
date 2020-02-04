@@ -130,7 +130,7 @@ class Union( object ):
 
 	def InsertDb( self ):
 		if TRACE_DB_INSERTS:
-			print "... Inserting Union:", self.idUnion
+			print ("... Inserting Union:", self.idUnion)
 
 		GenieDB.DbExecute( 
 			GenieDB.Unions({
@@ -145,7 +145,7 @@ class Union( object ):
 				
 		for child in self.children:
 			if TRACE_DB_INSERTS:
-				print "... Inserting Child:", self.idUnion, child.idPerson
+				print ("... Inserting Child:", self.idUnion, child.idPerson)
 			GenieDB.DbExecute( 
 				GenieDB.Offspring({
 					"Parents": 		self.idUnion,
@@ -213,11 +213,11 @@ class Person( object ):
 		if self.name == parents.a.name:
 			self.scion = parents.a.scion + 1
 			if REPORT_SCIONS:
-				print "## Scion:", self, "TO", parents.a
+				print ("## Scion:", self, "TO", parents.a)
 		elif self.name == parents.b.name:
 			self.scion = parents.b.scion + 1
 			if REPORT_SCIONS:
-				print "## Scion:", self, "TO", parents.b
+				print ("## Scion:", self, "TO", parents.b)
 			
 		# Recursively check all other predecessors.
 		# Since at this point, all prior scions have been detected,
@@ -237,7 +237,7 @@ class Person( object ):
 		if namesake:
 			self.qualifier = namesake.qualifier + 1
 			if REPORT_NAMESAKES:
-				print "## Namesake:", self, "AND", namesake
+				print ("## Namesake:", self, "AND", namesake)
 		
 	def GetFirstName( self ):
 		fields = self.name.split()
@@ -269,7 +269,7 @@ class Person( object ):
 	def Export( self, out=sys.stdout ):
 		""" print out self, and any unions """
 
-		print >>out, self
+		print (self, file=out)
 		for union, index in FindUnions( self ):
 			union.Export( index, out )
 			
@@ -288,7 +288,7 @@ class Person( object ):
 			})
 
 		if TRACE_DB_INSERTS:
-			print "... Inserting Person:", self.idPerson, self
+			print ("... Inserting Person:", self.idPerson, self)
 			# print row
 
 		GenieDB.DbExecute( row.AsSQLInsert())	\
@@ -393,20 +393,20 @@ def Import( filename ):
 				= person 			\
 				= Person( lexeme, parents=MostRecentUnionIfAny())
 			if TRACE_TEXT_IMPORT:
-				print len( People ), Level, person
+				print (len( People ), Level, person)
 			
 		elif lexeme.token == "*":					# additional marriage
 			person = FindPersonOnStack( lexeme.name )
 			Level = person.level
 			title = lexeme.title
 			if False and TRACE_TEXT_IMPORT:
-				print len( People ), Level, "xUnion:", person, title
+				print (len( People ), Level, "xUnion:", person, title)
 	
 		elif lexeme.token == "+":					# marriage
 			spouse = Person( lexeme, title=title )
 			UnionsStack[ Level ] = marriage = Union( PeopleStack[ Level ], spouse )
 			if TRACE_TEXT_IMPORT:
-				print len( People ), Level, marriage
+				print (len( People ), Level, marriage)
 			title = None
 			
 		else:
@@ -470,7 +470,7 @@ def Month( mm ):
 		if 1 <= mm <= 31:
 			return mm
 
-#	print "#!! error converting '%s' to month:" % mm
+#	print ("#!! error converting '%s' to month:" % mm)
 	return 0
 	
 def DATE( yy, mm="0", dd="0" ):
@@ -482,9 +482,9 @@ def DATE( yy, mm="0", dd="0" ):
 	
 	if Y > 1000:
 		try:
-#			print "yymmdd:", yy, mm, dd
+#			print ("yymmdd:", yy, mm, dd)
 			return Date.Date( Y, M, D )
-		except ( ValueError, IndexError, KeyError ), e:
+		except ( ValueError, IndexError, KeyError ) as e:
 			pass
 	return None
 
@@ -538,9 +538,9 @@ def ExtractDateAndPlace( attr ):
 			date = GenieDB.NullDate
 
 	if attr and TRACE_DATE_EXTRACTION:
-		print attr, "=>"
-		print "\t->", date
-		print "\t->", place
+		print (attr, "=>")
+		print ("\t->", date)
+		print ("\t->", place)
 	return date, place
 
 
@@ -555,15 +555,15 @@ if __name__=='__main__':
 			Import( filename )
 
 	if 0:
-		print "# Exported Results ################################################"
+		print ("# Exported Results ################################################")
 		People[0].Export() # everything should follow from the first ancestor
 		
 	if not TRACE_DATE_EXTRACTION:
 		try:
 			if TRACE_TEXT_IMPORT:
-				print "#############################################################"
-				print "### Insert Trace ############################################"
-				print "#############################################################"
+				print ("#############################################################")
+				print ("### Insert Trace ############################################")
+				print ("#############################################################")
 			GenieDB.MasterClear()
 			for person in People:
 				person.InsertDb()
@@ -572,16 +572,16 @@ if __name__=='__main__':
 		except:
 			import TraceBackVars
 			exctype, value = sys.exc_info()[:2]
-			print "exception:", exctype, value 
+			print ("exception:", exctype, value )
 			TraceBackVars.TraceBackVars()
 
 	if REPORT_ALL_NAMES:
 		out = file( "~CommonNames.txt", "wt" )
 		for person in People:
 			fn = person.GetFirstName()
-			if fn:	print >>out , fn
+			if fn:	print (fn, file=out)
 			mn = person.GetMiddleName()
-			if mn:	print >>out , mn
+			if mn:	print (mn, file=out)
 				
 	if REPORT_NEW_NAMES:
 		InferSexFromName.SaveDifferences( "~CommonNames.txt", "~NewNames.txt" )
@@ -589,4 +589,4 @@ if __name__=='__main__':
 	if REPORT_UNK_SEXES:
 		for person in People:
 			if not person.sex:
-				print "# Sex Unk:", person
+				print ("# Sex Unk:", person)
